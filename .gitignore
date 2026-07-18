@@ -1,4 +1,5 @@
 api_key.env
+.env
 
 # Local data & analysis artifacts
 data/*.xpt
