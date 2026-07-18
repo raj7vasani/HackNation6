@@ -1,0 +1,836 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://example.org/pcos-canonical-schema/v0.1.json",
+  "title": "PCOS Canonical Schema",
+  "version": "0.1.0",
+  "description": "Open canonical schema for harmonizing cross-sectional PCOS research datasets. Organized around the Rotterdam 2003 criteria. Draft; not clinically validated.",
+  "type": "object",
+  "required": ["subject_id", "source_dataset"],
+  "additionalProperties": false,
+
+  "$defs": {
+    "missing_code": {
+      "type": "string",
+      "enum": ["not_measured", "below_lod", "not_applicable", "withheld", "unknown"],
+      "description": "Typed missingness. Missing values are never blank."
+    },
+    "nullable_number": {
+      "anyOf": [
+        { "type": "number" },
+        { "$ref": "#/$defs/missing_code" },
+        { "type": "null" }
+      ]
+    },
+    "nullable_integer": {
+      "anyOf": [
+        { "type": "integer" },
+        { "$ref": "#/$defs/missing_code" },
+        { "type": "null" }
+      ]
+    },
+    "nullable_boolean": {
+      "anyOf": [
+        { "type": "boolean" },
+        { "$ref": "#/$defs/missing_code" },
+        { "type": "null" }
+      ]
+    },
+    "nullable_string": {
+      "anyOf": [
+        { "type": "string" },
+        { "$ref": "#/$defs/missing_code" },
+        { "type": "null" }
+      ]
+    },
+    "provenance": {
+      "type": "object",
+      "description": "Emitted for every mapped field.",
+      "properties": {
+        "value_raw": {},
+        "unit_raw": { "type": ["string", "null"] },
+        "value_canonical": {},
+        "unit_canonical": { "type": ["string", "null"] },
+        "source_file": { "type": ["string", "null"] },
+        "source_column_name": { "type": ["string", "null"] },
+        "transformation_applied": { "type": ["string", "null"] },
+        "mapping_confidence": { "type": ["number", "null"], "minimum": 0, "maximum": 1 },
+        "mapping_rationale": { "type": ["string", "null"] },
+        "human_reviewed": { "type": "boolean", "default": false },
+        "below_lod_flag": { "type": ["boolean", "null"] }
+      },
+      "required": ["source_column_name", "human_reviewed"]
+    }
+  },
+
+  "properties": {
+
+    "subject_id": {
+      "type": "string",
+      "description": "Unique subject identifier within source_dataset.",
+      "x_group": "identity"
+    },
+    "source_dataset": {
+      "type": "string",
+      "description": "Identifier of the originating dataset.",
+      "x_group": "identity"
+    },
+    "age_years": {
+      "$ref": "#/$defs/nullable_number",
+      "x_unit": "years",
+      "x_group": "demographics",
+      "x_range": [0, 120],
+      "x_hints": ["age", "RIDAGEYR", "age_at_visit", "AGE"]
+    },
+    "race_ethnicity": {
+      "$ref": "#/$defs/nullable_string",
+      "x_group": "demographics",
+      "x_note": "Preserve source label verbatim; do not recode.",
+      "x_hints": ["race", "ethnicity", "RIDRETH1", "RIDRETH3"]
+    },
+    "height_cm": {
+      "$ref": "#/$defs/nullable_number",
+      "x_unit": "cm",
+      "x_group": "demographics",
+      "x_range": [100, 220],
+      "x_conversions": { "in": 2.54 },
+      "x_hints": ["height", "BMXHT", "ht_cm"]
+    },
+    "weight_kg": {
+      "$ref": "#/$defs/nullable_number",
+      "x_unit": "kg",
+      "x_group": "demographics",
+      "x_range": [25, 300],
+      "x_conversions": { "lb": 0.4536 },
+      "x_hints": ["weight", "BMXWT", "wt_kg"]
+    },
+    "bmi": {
+      "$ref": "#/$defs/nullable_number",
+      "x_unit": "kg/m2",
+      "x_group": "demographics",
+      "x_range": [10, 80],
+      "x_derivable": "weight_kg / (height_cm/100)^2",
+      "x_hints": ["bmi", "BMXBMI", "body_mass_index"]
+    },
+    "waist_circumference_cm": {
+      "$ref": "#/$defs/nullable_number",
+      "x_unit": "cm",
+      "x_group": "demographics",
+      "x_range": [40, 200],
+      "x_conversions": { "in": 2.54 },
+      "x_hints": ["waist", "BMXWAIST"]
+    },
+    "hip_circumference_cm": {
+      "$ref": "#/$defs/nullable_number",
+      "x_unit": "cm",
+      "x_group": "demographics",
+      "x_range": [50, 200],
+      "x_conversions": { "in": 2.54 },
+      "x_hints": ["hip", "BMXHIP"]
+    },
+    "waist_hip_ratio": {
+      "$ref": "#/$defs/nullable_number",
+      "x_unit": "ratio",
+      "x_group": "demographics",
+      "x_range": [0.5, 1.5],
+      "x_derivable": "waist_circumference_cm / hip_circumference_cm"
+    },
+
+    "hormonal_contraceptive_use": {
+      "anyOf": [
+        { "type": "string", "enum": ["current", "former", "never", "unknown"] },
+        { "$ref": "#/$defs/missing_code" },
+        { "type": "null" }
+      ],
+      "x_group": "confounders",
+      "x_priority": "critical",
+      "x_note": "Suppresses androgens and imposes artificial cycles. Absence invalidates most androgen and cycle analysis.",
+      "x_hints": ["birth_control", "oral_contraceptive", "OC_use", "RHQ540", "contraception"]
+    },
+    "contraceptive_type": {
+      "anyOf": [
+        { "type": "string", "enum": ["combined_oral", "progestin_only_oral", "hormonal_iud", "copper_iud", "implant", "injectable", "patch", "ring", "other_hormonal", "non_hormonal", "none", "unknown"] },
+        { "$ref": "#/$defs/missing_code" },
+        { "type": "null" }
+      ],
+      "x_group": "confounders",
+      "x_note": "Suppression magnitude differs by type. Combined oral contraceptives raise SHBG and suppress androgens most strongly; copper IUD and non-hormonal methods do not. Preserve the source label in value_raw.",
+      "x_hints": ["contraceptive_type", "birth_control_method", "OC_type", "RHQ554", "contraception_method"]
+    },
+    "contraceptive_washout_days": {
+      "$ref": "#/$defs/nullable_integer",
+      "x_unit": "days",
+      "x_group": "confounders"
+    },
+    "pregnancy_status": {
+      "anyOf": [
+        { "type": "string", "enum": ["pregnant", "not_pregnant", "postpartum", "unknown"] },
+        { "$ref": "#/$defs/missing_code" },
+        { "type": "null" }
+      ],
+      "x_group": "confounders",
+      "x_note": "Invalidates most hormonal and cycle fields.",
+      "x_hints": ["pregnant", "RHQ143", "URXPREG", "RIDEXPRG"]
+    },
+    "breastfeeding_flag": {
+      "$ref": "#/$defs/nullable_boolean",
+      "x_group": "confounders",
+      "x_hints": ["breastfeeding", "RHQ200", "lactating"]
+    },
+    "menopausal_status": {
+      "anyOf": [
+        { "type": "string", "enum": ["pre", "peri", "post", "unknown"] },
+        { "$ref": "#/$defs/missing_code" },
+        { "type": "null" }
+      ],
+      "x_group": "confounders",
+      "x_hints": ["menopause", "RHQ043", "menopausal"]
+    },
+    "age_at_last_menstrual_period": {
+      "$ref": "#/$defs/nullable_number",
+      "x_unit": "years",
+      "x_group": "confounders",
+      "x_hints": ["RHQ060", "age_last_period"]
+    },
+    "hysterectomy_flag": {
+      "$ref": "#/$defs/nullable_boolean",
+      "x_group": "confounders",
+      "x_note": "Cycle fields become not_applicable.",
+      "x_hints": ["hysterectomy", "RHQ282", "uterus_removed"]
+    },
+    "oophorectomy_flag": {
+      "$ref": "#/$defs/nullable_boolean",
+      "x_group": "confounders",
+      "x_note": "Bilateral removal. Androgen and morphology fields become not_applicable.",
+      "x_hints": ["oophorectomy", "RHQ305", "ovaries_removed"]
+    },
+    "age_at_oophorectomy": {
+      "$ref": "#/$defs/nullable_number",
+      "x_unit": "years",
+      "x_group": "confounders",
+      "x_hints": ["RHQ332"]
+    },
+    "metformin_use": {
+      "$ref": "#/$defs/nullable_boolean",
+      "x_group": "confounders",
+      "x_note": "Alters metabolic panel."
+    },
+    "antiandrogen_use": {
+      "$ref": "#/$defs/nullable_boolean",
+      "x_group": "confounders",
+      "x_note": "e.g. spironolactone. Suppresses clinical and biochemical androgen signals."
+    },
+    "ovulation_induction_use": {
+      "$ref": "#/$defs/nullable_boolean",
+      "x_group": "confounders",
+      "x_note": "e.g. letrozole, clomiphene."
+    },
+
+    "age_at_menarche": {
+      "$ref": "#/$defs/nullable_number",
+      "x_unit": "years",
+      "x_group": "criterion_1_ovulatory",
+      "x_range": [6, 25],
+      "x_hints": ["menarche", "RHQ010", "age_first_period"]
+    },
+    "cycle_length_days_typical": {
+      "$ref": "#/$defs/nullable_number",
+      "x_unit": "days",
+      "x_group": "criterion_1_ovulatory",
+      "x_range": [15, 365],
+      "x_hints": ["cycle_length", "menstrual_cycle_days"]
+    },
+    "cycle_length_variability_days": {
+      "$ref": "#/$defs/nullable_number",
+      "x_unit": "days",
+      "x_group": "criterion_1_ovulatory",
+      "x_note": "SD or range; record which in transformation_applied."
+    },
+    "cycles_per_year": {
+      "$ref": "#/$defs/nullable_number",
+      "x_unit": "count",
+      "x_group": "criterion_1_ovulatory",
+      "x_range": [0, 24]
+    },
+    "oligomenorrhea_flag": {
+      "$ref": "#/$defs/nullable_boolean",
+      "x_group": "criterion_1_ovulatory",
+      "x_note": "Conventionally cycles >35 days or <8 cycles/year.",
+      "x_hints": ["oligomenorrhea", "irregular_periods"]
+    },
+    "amenorrhea_flag": {
+      "$ref": "#/$defs/nullable_boolean",
+      "x_group": "criterion_1_ovulatory",
+      "x_note": "No menses >=3 months (some instruments use >=12).",
+      "x_hints": ["amenorrhea", "RHQ031", "no_period"]
+    },
+    "irregular_cycles_self_report": {
+      "$ref": "#/$defs/nullable_boolean",
+      "x_group": "criterion_1_ovulatory"
+    },
+    "progesterone_luteal": {
+      "$ref": "#/$defs/nullable_number",
+      "x_unit": "nmol/L",
+      "x_group": "criterion_1_ovulatory",
+      "x_conversions": { "ng/mL": 3.18 },
+      "x_note": "Biochemical confirmation that ovulation occurred.",
+      "x_hints": ["progesterone", "P4", "LBXPRG"]
+    },
+    "ovulatory_dysfunction_derived": {
+      "$ref": "#/$defs/nullable_boolean",
+      "x_group": "criterion_1_ovulatory",
+      "x_derived": true
+    },
+    "ovulatory_evidence_level": {
+      "anyOf": [
+        { "type": "string", "enum": ["measured", "clinician", "self_report", "unknown"] },
+        { "type": "null" }
+      ],
+      "x_group": "criterion_1_ovulatory"
+    },
+
+    "total_testosterone": {
+      "$ref": "#/$defs/nullable_number",
+      "x_unit": "nmol/L",
+      "x_group": "criterion_2_hyperandrogenism",
+      "x_range": [0, 20],
+      "x_conversions": { "ng/dL": 0.0347, "ng/mL": 3.47 },
+      "x_note": "Unit disambiguation: values ~0.5-3 suggest nmol/L; ~15-90 suggest ng/dL.",
+      "x_hints": ["testosterone", "LBXTST", "total_T", "TT"]
+    },
+    "free_testosterone": {
+      "$ref": "#/$defs/nullable_number",
+      "x_unit": "pmol/L",
+      "x_group": "criterion_2_hyperandrogenism",
+      "x_conversions": { "pg/mL": 3.47 },
+      "x_hints": ["free_testosterone", "free_T", "FT"]
+    },
+    "shbg": {
+      "$ref": "#/$defs/nullable_number",
+      "x_unit": "nmol/L",
+      "x_group": "criterion_2_hyperandrogenism",
+      "x_range": [0, 300],
+      "x_hints": ["shbg", "LBXSHBG", "sex_hormone_binding_globulin"]
+    },
+    "free_androgen_index": {
+      "$ref": "#/$defs/nullable_number",
+      "x_unit": "ratio",
+      "x_group": "criterion_2_hyperandrogenism",
+      "x_derivable": "100 * total_testosterone / shbg (both nmol/L)",
+      "x_hints": ["FAI", "free_androgen_index"]
+    },
+    "dheas": {
+      "$ref": "#/$defs/nullable_number",
+      "x_unit": "umol/L",
+      "x_group": "criterion_2_hyperandrogenism",
+      "x_conversions": { "ug/dL": 0.02714 },
+      "x_hints": ["dheas", "DHEA-S", "dehydroepiandrosterone_sulfate"]
+    },
+    "androstenedione": {
+      "$ref": "#/$defs/nullable_number",
+      "x_unit": "nmol/L",
+      "x_group": "criterion_2_hyperandrogenism",
+      "x_conversions": { "ng/dL": 0.0349 },
+      "x_hints": ["androstenedione", "A4"]
+    },
+    "androgen_assay_method": {
+      "anyOf": [
+        { "type": "string", "enum": ["immunoassay", "lcmsms", "unknown"] },
+        { "$ref": "#/$defs/missing_code" },
+        { "type": "null" }
+      ],
+      "x_group": "criterion_2_hyperandrogenism",
+      "x_priority": "critical",
+      "x_note": "Immunoassay and LC-MS/MS are not comparable at female concentrations. Pooling without this field produces confidently wrong results.",
+      "x_hints": ["assay", "method", "platform"]
+    },
+    "sample_time_of_day": {
+      "anyOf": [
+        { "type": "string", "enum": ["morning", "afternoon", "unknown"] },
+        { "type": "null" }
+      ],
+      "x_group": "criterion_2_hyperandrogenism",
+      "x_note": "Androgens show diurnal variation.",
+      "x_hints": ["RIDEXMON", "session", "time_of_day", "RIAGENDR_session"]
+    },
+    "hirsutism_score_mfg": {
+      "$ref": "#/$defs/nullable_integer",
+      "x_unit": "score",
+      "x_group": "criterion_2_hyperandrogenism",
+      "x_range": [0, 36],
+      "x_note": "Modified Ferriman-Gallwey.",
+      "x_hints": ["ferriman", "mFG", "hirsutism_score"]
+    },
+    "hirsutism_flag": {
+      "$ref": "#/$defs/nullable_boolean",
+      "x_group": "criterion_2_hyperandrogenism",
+      "x_note": "Threshold varies by ethnicity; record applied threshold in transformation_applied."
+    },
+    "acne_flag": {
+      "$ref": "#/$defs/nullable_boolean",
+      "x_group": "criterion_2_hyperandrogenism"
+    },
+    "androgenic_alopecia_flag": {
+      "$ref": "#/$defs/nullable_boolean",
+      "x_group": "criterion_2_hyperandrogenism",
+      "x_hints": ["alopecia", "hair_loss"]
+    },
+    "clinical_androgen_assessment": {
+      "anyOf": [
+        { "type": "string", "enum": ["clinician", "self_report", "unknown"] },
+        { "type": "null" }
+      ],
+      "x_group": "criterion_2_hyperandrogenism"
+    },
+    "hyperandrogenism_derived": {
+      "$ref": "#/$defs/nullable_boolean",
+      "x_group": "criterion_2_hyperandrogenism",
+      "x_derived": true
+    },
+    "hyperandrogenism_basis": {
+      "anyOf": [
+        { "type": "string", "enum": ["biochemical", "clinical", "both", "none"] },
+        { "type": "null" }
+      ],
+      "x_group": "criterion_2_hyperandrogenism"
+    },
+
+    "antral_follicle_count_left": {
+      "$ref": "#/$defs/nullable_integer",
+      "x_unit": "count",
+      "x_group": "criterion_3_pcom",
+      "x_range": [0, 100],
+      "x_hints": ["AFC_left", "follicle_count_left"]
+    },
+    "antral_follicle_count_right": {
+      "$ref": "#/$defs/nullable_integer",
+      "x_unit": "count",
+      "x_group": "criterion_3_pcom",
+      "x_range": [0, 100],
+      "x_hints": ["AFC_right", "follicle_count_right"]
+    },
+    "antral_follicle_count_max": {
+      "$ref": "#/$defs/nullable_integer",
+      "x_unit": "count",
+      "x_group": "criterion_3_pcom",
+      "x_note": "Per-ovary maximum. This is the criterion value.",
+      "x_derivable": "max(antral_follicle_count_left, antral_follicle_count_right)"
+    },
+    "ovarian_volume_left_ml": {
+      "$ref": "#/$defs/nullable_number",
+      "x_unit": "mL",
+      "x_group": "criterion_3_pcom",
+      "x_range": [0, 100]
+    },
+    "ovarian_volume_right_ml": {
+      "$ref": "#/$defs/nullable_number",
+      "x_unit": "mL",
+      "x_group": "criterion_3_pcom",
+      "x_range": [0, 100]
+    },
+    "ovarian_volume_max_ml": {
+      "$ref": "#/$defs/nullable_number",
+      "x_unit": "mL",
+      "x_group": "criterion_3_pcom",
+      "x_note": "Criterion conventionally >10 mL.",
+      "x_derivable": "max(ovarian_volume_left_ml, ovarian_volume_right_ml)"
+    },
+    "ultrasound_route": {
+      "anyOf": [
+        { "type": "string", "enum": ["transvaginal", "transabdominal", "unknown"] },
+        { "type": "null" }
+      ],
+      "x_group": "criterion_3_pcom",
+      "x_note": "Resolution differs materially; affects valid follicle-count threshold."
+    },
+    "amh": {
+      "$ref": "#/$defs/nullable_number",
+      "x_unit": "pmol/L",
+      "x_group": "criterion_3_pcom",
+      "x_conversions": { "ng/mL": 7.14 },
+      "x_note": "May substitute for ultrasound in adults per 2023 International Guideline.",
+      "x_hints": ["AMH", "anti_mullerian_hormone"]
+    },
+    "pcom_flag": {
+      "$ref": "#/$defs/nullable_boolean",
+      "x_group": "criterion_3_pcom",
+      "x_note": "Never set without pcom_threshold_applied."
+    },
+    "pcom_threshold_applied": {
+      "$ref": "#/$defs/nullable_string",
+      "x_group": "criterion_3_pcom",
+      "x_priority": "critical",
+      "x_note": "e.g. 'AFC>=12', 'AFC>=20', 'volume>10ml'. Threshold moved from >=12 to >=20 as ultrasound resolution improved; a bare boolean is not comparable across eras."
+    },
+    "pcom_basis": {
+      "anyOf": [
+        { "type": "string", "enum": ["ultrasound", "amh", "unknown"] },
+        { "type": "null" }
+      ],
+      "x_group": "criterion_3_pcom"
+    },
+
+    "lh": {
+      "$ref": "#/$defs/nullable_number",
+      "x_unit": "IU/L",
+      "x_group": "gonadotropins",
+      "x_hints": ["LH", "luteinizing_hormone"]
+    },
+    "fsh": {
+      "$ref": "#/$defs/nullable_number",
+      "x_unit": "IU/L",
+      "x_group": "gonadotropins",
+      "x_hints": ["FSH", "follicle_stimulating_hormone"]
+    },
+    "lh_fsh_ratio": {
+      "$ref": "#/$defs/nullable_number",
+      "x_unit": "ratio",
+      "x_group": "gonadotropins",
+      "x_derivable": "lh / fsh",
+      "x_note": "Historically used; no longer a diagnostic criterion."
+    },
+    "estradiol": {
+      "$ref": "#/$defs/nullable_number",
+      "x_unit": "pmol/L",
+      "x_group": "gonadotropins",
+      "x_conversions": { "pg/mL": 3.671 },
+      "x_hints": ["estradiol", "E2", "LBXEST"]
+    },
+
+    "tsh": {
+      "$ref": "#/$defs/nullable_number",
+      "x_unit": "mIU/L",
+      "x_group": "exclusions",
+      "x_note": "Thyroid dysfunction — an exclusion for PCOS.",
+      "x_hints": ["TSH", "thyroid_stimulating_hormone", "LBXTSH"]
+    },
+    "free_t4": {
+      "$ref": "#/$defs/nullable_number",
+      "x_unit": "pmol/L",
+      "x_group": "exclusions",
+      "x_hints": ["free_T4", "FT4", "LBXT4F"]
+    },
+    "prolactin": {
+      "$ref": "#/$defs/nullable_number",
+      "x_unit": "mIU/L",
+      "x_group": "exclusions",
+      "x_conversions": { "ng/mL": 21.2 },
+      "x_note": "Hyperprolactinemia — an exclusion for PCOS.",
+      "x_hints": ["prolactin", "PRL"]
+    },
+    "17_hydroxyprogesterone": {
+      "$ref": "#/$defs/nullable_number",
+      "x_unit": "nmol/L",
+      "x_group": "exclusions",
+      "x_conversions": { "ng/dL": 0.0303 },
+      "x_note": "Non-classic congenital adrenal hyperplasia — an exclusion for PCOS.",
+      "x_hints": ["17-OHP", "17_OH_progesterone", "17OHP"]
+    },
+    "cortisol": {
+      "$ref": "#/$defs/nullable_number",
+      "x_unit": "nmol/L",
+      "x_group": "exclusions",
+      "x_conversions": { "ug/dL": 27.59 },
+      "x_note": "Cushing's syndrome screening.",
+      "x_hints": ["cortisol", "LBXCRS"]
+    },
+    "exclusions_assessed_flag": {
+      "$ref": "#/$defs/nullable_boolean",
+      "x_group": "exclusions",
+      "x_priority": "critical",
+      "x_note": "Without this, a positive PCOS label cannot be distinguished from an unworked-up PCOS-like presentation."
+    },
+    "exclusion_condition_present": {
+      "$ref": "#/$defs/nullable_string",
+      "x_group": "exclusions"
+    },
+
+    "fasting_glucose": {
+      "$ref": "#/$defs/nullable_number",
+      "x_unit": "mmol/L",
+      "x_group": "metabolic",
+      "x_range": [1, 40],
+      "x_conversions": { "mg/dL": 0.0555 },
+      "x_note": "Unit disambiguation: values ~4-7 suggest mmol/L; ~70-130 suggest mg/dL.",
+      "x_hints": ["glucose", "LBXGLU", "fasting_glucose", "FPG"]
+    },
+    "fasting_insulin": {
+      "$ref": "#/$defs/nullable_number",
+      "x_unit": "pmol/L",
+      "x_group": "metabolic",
+      "x_conversions": { "uIU/mL": 6.945, "mIU/L": 6.945 },
+      "x_hints": ["insulin", "LBXIN", "fasting_insulin"]
+    },
+    "homa_ir": {
+      "$ref": "#/$defs/nullable_number",
+      "x_unit": "ratio",
+      "x_group": "metabolic",
+      "x_derivable": "fasting_glucose(mmol/L) * fasting_insulin(uIU/mL) / 22.5",
+      "x_hints": ["HOMA", "HOMA-IR", "insulin_resistance"]
+    },
+    "ogtt_2hr_glucose": {
+      "$ref": "#/$defs/nullable_number",
+      "x_unit": "mmol/L",
+      "x_group": "metabolic",
+      "x_conversions": { "mg/dL": 0.0555 },
+      "x_hints": ["OGTT", "LBXGLT", "2hr_glucose"]
+    },
+    "hba1c_percent": {
+      "$ref": "#/$defs/nullable_number",
+      "x_unit": "% (NGSP)",
+      "x_group": "metabolic",
+      "x_range": [3, 20],
+      "x_conversions": { "mmol/mol (IFCC)": "NGSP% = (IFCC * 0.0915) + 2.15" },
+      "x_hints": ["hba1c", "LBXGH", "glycohemoglobin", "A1c"]
+    },
+    "total_cholesterol": {
+      "$ref": "#/$defs/nullable_number",
+      "x_unit": "mmol/L",
+      "x_group": "metabolic",
+      "x_conversions": { "mg/dL": 0.0259 },
+      "x_hints": ["total_cholesterol", "LBXTC", "TC"]
+    },
+    "hdl_cholesterol": {
+      "$ref": "#/$defs/nullable_number",
+      "x_unit": "mmol/L",
+      "x_group": "metabolic",
+      "x_conversions": { "mg/dL": 0.0259 },
+      "x_hints": ["HDL", "LBDHDD"]
+    },
+    "ldl_cholesterol": {
+      "$ref": "#/$defs/nullable_number",
+      "x_unit": "mmol/L",
+      "x_group": "metabolic",
+      "x_conversions": { "mg/dL": 0.0259 },
+      "x_hints": ["LDL", "LBDLDL"]
+    },
+    "triglycerides": {
+      "$ref": "#/$defs/nullable_number",
+      "x_unit": "mmol/L",
+      "x_group": "metabolic",
+      "x_conversions": { "mg/dL": 0.0113 },
+      "x_hints": ["triglycerides", "LBXTR", "TG"]
+    },
+    "systolic_bp": {
+      "$ref": "#/$defs/nullable_integer",
+      "x_unit": "mmHg",
+      "x_group": "metabolic",
+      "x_range": [50, 300],
+      "x_hints": ["systolic", "BPXSY1", "SBP"]
+    },
+    "diastolic_bp": {
+      "$ref": "#/$defs/nullable_integer",
+      "x_unit": "mmHg",
+      "x_group": "metabolic",
+      "x_range": [20, 200],
+      "x_hints": ["diastolic", "BPXDI1", "DBP"]
+    },
+    "acanthosis_nigricans_flag": {
+      "$ref": "#/$defs/nullable_boolean",
+      "x_group": "metabolic"
+    },
+
+    "gravidity": {
+      "$ref": "#/$defs/nullable_integer",
+      "x_unit": "count",
+      "x_group": "fertility",
+      "x_range": [0, 30],
+      "x_hints": ["gravidity", "RHQ131", "pregnancies"]
+    },
+    "parity": {
+      "$ref": "#/$defs/nullable_integer",
+      "x_unit": "count",
+      "x_group": "fertility",
+      "x_range": [0, 30],
+      "x_hints": ["parity", "RHQ167", "deliveries", "births"]
+    },
+    "infertility_history_flag": {
+      "$ref": "#/$defs/nullable_boolean",
+      "x_group": "fertility"
+    },
+    "infertility_duration_months": {
+      "$ref": "#/$defs/nullable_integer",
+      "x_unit": "months",
+      "x_group": "fertility"
+    },
+    "fertility_treatment_use": {
+      "$ref": "#/$defs/nullable_boolean",
+      "x_group": "fertility"
+    },
+    "family_history_pcos": {
+      "$ref": "#/$defs/nullable_boolean",
+      "x_group": "fertility"
+    },
+    "family_history_t2d": {
+      "$ref": "#/$defs/nullable_boolean",
+      "x_group": "fertility"
+    },
+
+    "depression_screen_score": {
+      "$ref": "#/$defs/nullable_number",
+      "x_unit": "score",
+      "x_group": "mental_health",
+      "x_note": "Raw instrument score. Scales differ in range and direction; not comparable across instruments.",
+      "x_hints": ["PHQ9", "DPQ", "depression_score", "CESD", "BDI"]
+    },
+    "depression_instrument": {
+      "anyOf": [
+        { "type": "string", "enum": ["PHQ-9", "PHQ-2", "CES-D", "BDI-II", "HADS-D", "EPDS", "other", "unknown"] },
+        { "$ref": "#/$defs/missing_code" },
+        { "type": "null" }
+      ],
+      "x_group": "mental_health",
+      "x_note": "Required if depression_screen_score present. Use 'other' for unlisted instruments and preserve the verbatim name in value_raw."
+    },
+    "anxiety_screen_score": {
+      "$ref": "#/$defs/nullable_number",
+      "x_unit": "score",
+      "x_group": "mental_health",
+      "x_note": "Raw instrument score.",
+      "x_hints": ["GAD7", "anxiety_score", "STAI", "BAI"]
+    },
+    "anxiety_instrument": {
+      "anyOf": [
+        { "type": "string", "enum": ["GAD-7", "GAD-2", "STAI", "HADS-A", "BAI", "other", "unknown"] },
+        { "$ref": "#/$defs/missing_code" },
+        { "type": "null" }
+      ],
+      "x_group": "mental_health",
+      "x_note": "Required if anxiety_screen_score present. Use 'other' for unlisted instruments and preserve the verbatim name in value_raw."
+    },
+    "quality_of_life_score": {
+      "$ref": "#/$defs/nullable_number",
+      "x_unit": "score",
+      "x_group": "mental_health",
+      "x_note": "Raw instrument score.",
+      "x_hints": ["PCOSQ", "SF36", "SF12", "quality_of_life", "WHOQOL", "EQ5D"]
+    },
+    "quality_of_life_instrument": {
+      "anyOf": [
+        { "type": "string", "enum": ["PCOSQ", "PCOSQ-50", "MPCOSQ", "SF-36", "SF-12", "WHOQOL-BREF", "EQ-5D", "other", "unknown"] },
+        { "$ref": "#/$defs/missing_code" },
+        { "type": "null" }
+      ],
+      "x_group": "mental_health",
+      "x_note": "Required if quality_of_life_score present. PCOSQ and variants are PCOS-specific; the others are generic."
+    },
+
+    "pcos_diagnosis_flag": {
+      "$ref": "#/$defs/nullable_boolean",
+      "x_group": "diagnosis",
+      "x_hints": ["pcos", "PCOS_diagnosis", "polycystic"]
+    },
+    "diagnostic_criteria_version": {
+      "anyOf": [
+        { "type": "string", "enum": ["NIH_1990", "Rotterdam_2003", "AE_PCOS_2006", "Intl_2018", "Intl_2023", "unknown"] },
+        { "type": "null" }
+      ],
+      "x_group": "diagnosis",
+      "x_priority": "critical",
+      "x_note": "Criteria differ substantively; without this, diagnosis flags are not comparable across datasets."
+    },
+    "criteria_met": {
+      "anyOf": [
+        {
+          "type": "array",
+          "items": { "type": "string", "enum": ["ovulatory", "hyperandrogenism", "pcom"] },
+          "uniqueItems": true,
+          "maxItems": 3
+        },
+        { "type": "null" }
+      ],
+      "x_group": "diagnosis"
+    },
+    "phenotype": {
+      "anyOf": [
+        { "type": "string", "enum": ["A", "B", "C", "D", "unknown"] },
+        { "type": "null" }
+      ],
+      "x_group": "diagnosis",
+      "x_derivable": "A = ovulatory+hyperandrogenism+pcom; B = ovulatory+hyperandrogenism; C = hyperandrogenism+pcom; D = ovulatory+pcom",
+      "x_note": "Phenotypes differ in metabolic risk; collapsing to a single flag loses most of the signal."
+    },
+    "diagnosis_source": {
+      "anyOf": [
+        { "type": "string", "enum": ["clinician", "self_report", "derived", "unknown"] },
+        { "type": "null" }
+      ],
+      "x_group": "diagnosis"
+    },
+    "diagnosis_date": {
+      "anyOf": [
+        { "type": "string", "format": "date" },
+        { "$ref": "#/$defs/missing_code" },
+        { "type": "null" }
+      ],
+      "x_group": "diagnosis"
+    },
+
+    "cycle_day_at_draw": {
+      "$ref": "#/$defs/nullable_integer",
+      "x_unit": "days",
+      "x_group": "sample_context",
+      "x_note": "Days since menses onset. Frequently undefined in this population — expected, not an error."
+    },
+    "collection_date": {
+      "anyOf": [
+        { "type": "string", "format": "date" },
+        { "$ref": "#/$defs/missing_code" },
+        { "type": "null" }
+      ],
+      "x_group": "sample_context"
+    },
+    "fasting_status": {
+      "anyOf": [
+        { "type": "string", "enum": ["fasting", "non_fasting", "unknown"] },
+        { "$ref": "#/$defs/missing_code" },
+        { "type": "null" }
+      ],
+      "x_group": "sample_context",
+      "x_note": "Gates interpretability of glucose, insulin, and lipid values.",
+      "x_hints": ["fasting", "PHAFSTHR", "PHQ020"]
+    },
+
+    "_provenance": {
+      "type": "object",
+      "description": "Map of canonical field name to its provenance record.",
+      "additionalProperties": { "$ref": "#/$defs/provenance" }
+    }
+  },
+
+  "x_coverage_report": {
+    "description": "Fields the coverage report must evaluate.",
+    "criterion_1_evaluable": ["cycle_length_days_typical", "cycles_per_year", "oligomenorrhea_flag", "amenorrhea_flag", "irregular_cycles_self_report", "progesterone_luteal"],
+    "criterion_2_evaluable": ["total_testosterone", "free_testosterone", "free_androgen_index", "dheas", "androstenedione", "hirsutism_score_mfg", "hirsutism_flag"],
+    "criterion_3_evaluable": ["antral_follicle_count_max", "ovarian_volume_max_ml", "amh"],
+    "critical_confounders": ["hormonal_contraceptive_use", "androgen_assay_method", "pregnancy_status"],
+    "verdict_rule": "A dataset can support a Rotterdam diagnosis only if at least 2 of 3 criteria are evaluable AND exclusions_assessed_flag is populated."
+  },
+
+  "x_validator_rules": [
+    "If pcom_flag is present, pcom_threshold_applied must also be present.",
+    "If age_years < 20 and pcom contributes to criteria_met, emit warning: PCOM is not a valid criterion within ~8 years of menarche.",
+    "If age_years - age_at_menarche < 3 and ovulatory dysfunction is inferred from cycle irregularity alone, emit warning.",
+    "If hysterectomy_flag is true, cycle fields must be not_applicable rather than missing.",
+    "If hormonal_contraceptive_use = current, androgen and cycle fields must carry a suppression warning.",
+    "If hormonal_contraceptive_use = never or none, contraceptive_type must be 'none', 'non_hormonal', or missing — not a hormonal type.",
+    "If contraceptive_type = combined_oral and hormonal_contraceptive_use = current, escalate the androgen suppression warning: SHBG elevation makes free_androgen_index uninterpretable.",
+    "If any androgen value is present and androgen_assay_method is missing, emit critical warning.",
+    "If depression_screen_score is present, depression_instrument must be present.",
+    "If anxiety_screen_score is present, anxiety_instrument must be present.",
+    "If quality_of_life_score is present, quality_of_life_instrument must be present.",
+    "If any instrument field = 'other', value_raw must carry the verbatim instrument name.",
+    "Screen scores are never harmonized across instruments; pooling scores with differing instrument values must emit a warning.",
+    "If pcos_diagnosis_flag is derived and exclusions_assessed_flag is not true, pcos_diagnosis_flag must be 'unknown', not false.",
+    "Derivation never overwrites a source-supplied value; the computed value is recorded in transformation_applied for comparison.",
+    "If a source-supplied value and its derived equivalent disagree beyond rounding tolerance, emit a warning.",
+    "Unit conversion is performed by deterministic code, never by the LLM; the LLM only infers unit_raw.",
+    "If unit_raw cannot be inferred, conversion and all dependent derivations are blocked until a reviewer supplies it.",
+    "Derived arithmetic fields are computed only when all inputs are present in canonical units.",
+    "Values outside x_range emit a physiological-plausibility warning, not a hard failure — they may indicate an unconverted unit."
+  ],
+
+  "x_license": {
+    "schema": "CC BY 4.0",
+    "reference_implementation": "MIT"
+  }
+}
