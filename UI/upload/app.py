@@ -121,13 +121,8 @@ with st.sidebar:
     source_val = None if source == "(none)" else source
 
 
-tab_harm, tab_guided, tab_chat, tab_convert = st.tabs(
-    [
-        "🧬 Schema Harmonizer",
-        "🧩 Guided build",
-        "💬 Chat with your data",
-        "⚡ Quick Convert & Profile",
-    ]
+tab_harm, tab_chat, tab_convert = st.tabs(
+    ["🧬 Schema Harmonizer", "💬 Chat with your data", "⚡ Quick Convert & Profile"]
 )
 
 
@@ -179,40 +174,121 @@ with tab_harm:
         key="harm_run",
     )
 
+    def _harm_progress_cb():
+        """A progress bar + step log, and the callback that drives them."""
+        bar = st.progress(0.0, text="Starting pipeline…")
+        log = st.empty()
+        done: list[str] = []
+
+        def cb(step: int, total: int, message: str) -> None:
+            done.append(f"{step}/{total}  {message}")
+            bar.progress(min(step / total, 1.0), text=message)
+            log.markdown("\n".join(f"- {'✅' if i < len(done) - 1 else '⏳'} {l}"
+                                   for i, l in enumerate(done)))
+        return bar, cb
+
+    def _finish(paths, mapping, prop) -> None:
+        """Run the deterministic tail and store the outcome."""
+        _bar, cb = _harm_progress_cb()
+        st.session_state["outcome"] = app_api.complete_after_review(
+            paths, mapping, engine_used=prop.engine_used,
+            source=source_val, notes=prop.notes, on_progress=cb,
+        )
+        _bar.progress(1.0, text="Done")
+
     if run and input_paths:
-        progress_bar = st.progress(0.0, text="Starting pipeline…")
-        step_log = st.empty()
-        completed: list[str] = []
+        # Fresh run: clear any prior result / paused review.
+        for k in ("outcome", "harm_phase", "harm_prop"):
+            st.session_state.pop(k, None)
+        st.session_state["harm_paths"] = [str(p) for p in input_paths]
 
-        def on_progress(step: int, total: int, message: str) -> None:
-            completed.append(f"{step}/{total}  {message}")
-            progress_bar.progress(min(step / total, 1.0), text=message)
-            step_log.markdown(
-                "\n".join(f"- {'✅' if i < len(completed) - 1 else '⏳'} {line}" for i, line in enumerate(completed))
-            )
+        if engine == "demo":
+            # Curated mapping — nothing to review, runs straight through.
+            with st.spinner("Running curated demo mapping…"):
+                try:
+                    st.session_state["outcome"] = app_api.analyze(
+                        input_paths, engine="demo", source=source_val)
+                except Exception as exc:  # noqa: BLE001
+                    st.error(f"Analysis failed: {exc}")
+        else:
+            # Phase 1 — ingest + propose (this is where it may get "stuck").
+            _bar, cb = _harm_progress_cb()
+            try:
+                prop = app_api.propose_for_review(
+                    input_paths, engine=engine, source=source_val, on_progress=cb)
+            except Exception as exc:  # noqa: BLE001
+                _bar.empty()
+                st.error(f"Analysis failed: {exc}")
+                prop = None
 
-        try:
-            st.session_state["outcome"] = app_api.analyze(
-                input_paths,
-                engine=engine,
-                source=source_val,
-                on_progress=on_progress,
-            )
-            progress_bar.progress(1.0, text="Done")
-            if completed:
-                last = completed[-1]
-                completed[-1] = last  # keep list stable
-                step_log.markdown(
-                    "\n".join(f"- ✅ {line}" for line in completed)
+            if prop is not None:
+                if prop.mapping.blocked:
+                    # Stuck → pause and ask the user for units.
+                    st.session_state["harm_prop"] = prop
+                    st.session_state["harm_phase"] = "review"
+                    _bar.empty()
+                    st.rerun()
+                else:
+                    _finish(st.session_state["harm_paths"], prop.mapping, prop)
+
+    # -----------------------------------------------------------------------
+    # Paused for review — ask for the missing units, then resume.
+    # -----------------------------------------------------------------------
+    if st.session_state.get("harm_phase") == "review":
+        prop = st.session_state["harm_prop"]
+        paths = st.session_state["harm_paths"]
+        blocked = review.pending_units(prop.mapping)
+
+        st.warning(
+            f"⏸️ **Paused — {len(blocked)} column(s) are stuck on an unknown unit.** "
+            "Pick the unit each value is recorded in, then continue. Leave one "
+            "unresolved to pass it through unconverted."
+        )
+        if prop.notes:
+            st.caption(" ".join(prop.notes))
+
+        answers: dict[str, str] = {}
+        for b in blocked:
+            entry = review.entry_for(prop.mapping, b.source_column)
+            cu = entry.unit_canonical if entry else None
+            opts = review.unit_options(cu)
+            choices = ["(leave unresolved)"] + opts
+            default_idx = 1 if len(opts) == 1 else 0
+            c1, c2 = st.columns([2, 3])
+            with c1:
+                st.markdown(f"**{b.source_column}** → `{entry.canonical_field}`")
+                st.caption(f"canonical unit: {cu}")
+            with c2:
+                pick = st.selectbox(
+                    f"Unit for {b.source_column}", choices, index=default_idx,
+                    key=f"harm_unit_{b.source_column}", label_visibility="collapsed",
                 )
-        except Exception as exc:  # noqa: BLE001
-            st.session_state.pop("outcome", None)
-            st.error(f"Analysis failed: {exc}")
-            progress_bar.empty()
-            step_log.empty()
+            if pick != "(leave unresolved)":
+                answers[b.source_column] = pick
+
+        go, skip, cancel = st.columns([2, 2, 1])
+        with go:
+            if st.button("Apply units & continue →", type="primary",
+                         use_container_width=True, key="harm_apply"):
+                review.apply_unit_answers(prop.mapping, answers)
+                _finish(paths, prop.mapping, prop)
+                st.session_state.pop("harm_phase", None)
+                st.rerun()
+        with skip:
+            if st.button("Skip all & continue", use_container_width=True, key="harm_skip"):
+                _finish(paths, prop.mapping, prop)
+                st.session_state.pop("harm_phase", None)
+                st.rerun()
+        with cancel:
+            if st.button("Cancel", use_container_width=True, key="harm_cancel"):
+                for k in ("harm_phase", "harm_prop"):
+                    st.session_state.pop(k, None)
+                st.rerun()
 
     outcome = st.session_state.get("outcome")
-    if outcome is not None:
+    if st.session_state.get("harm_phase") == "review":
+        pass  # results are hidden while paused
+    elif outcome is not None:
         res = outcome.result
 
         if outcome.engine_used != outcome.requested_engine or outcome.notes:
@@ -303,218 +379,7 @@ with tab_harm:
 
 
 # ===========================================================================
-# TAB 2 — Guided build (interactive: pause for input on "stuck" columns)
-# ===========================================================================
-def _mapping_rows(mapping) -> list[dict]:
-    rows = []
-    for m in mapping.mappings:
-        rows.append(
-            {
-                "source_column": m.source_column,
-                "canonical_field": m.canonical_field or "— (unmapped)",
-                "unit_raw": m.unit_raw or "",
-                "unit_canonical": m.unit_canonical or "",
-                "confidence": m.mapping_confidence,
-                "source": m.source,
-                "reviewed": m.human_reviewed,
-                "rationale": m.mapping_rationale or "",
-            }
-        )
-    return rows
-
-
-def _render_outcome(outcome, out_format: str, key_prefix: str) -> None:
-    """Compact results view (verdict + metrics + coverage/mapping/data/download)."""
-    res = outcome.result
-    if outcome.notes:
-        st.info(" ".join(outcome.notes))
-    st.markdown(f'<span class="badge">engine: {outcome.engine_used}</span>', unsafe_allow_html=True)
-
-    cov = res.coverage
-    verdict_cls = "verdict-ok" if "Can support" in cov["verdict"] else "verdict-no"
-    st.markdown(f'<div class="{verdict_cls}">{cov["verdict"]}</div>', unsafe_allow_html=True)
-
-    m1, m2, m3, m4 = st.columns(4)
-    m1.metric("Subjects", cov["n_subjects"])
-    m2.metric("Criteria evaluable", f"{cov['n_criteria_evaluable']}/3")
-    m3.metric("Mapped columns", len(res.mapping.active_mappings()))
-    m4.metric("Warnings", len(res.warnings))
-
-    t_cov, t_map, t_data, t_dl = st.tabs(
-        ["Coverage report", "Column mapping", "Standardized data", "Download"]
-    )
-    with t_cov:
-        st.code(format_report(cov), language="text")
-    with t_map:
-        st.dataframe(pd.DataFrame(_mapping_rows(res.mapping)), use_container_width=True, hide_index=True)
-    with t_data:
-        st.dataframe(res.table, use_container_width=True, hide_index=True)
-    with t_dl:
-        try:
-            payload = to_bytes(res.table, out_format)
-            ext = {"stata": "dta"}.get(out_format, out_format)
-            st.download_button(
-                f"Download standardized.{ext}",
-                data=payload,
-                file_name=f"standardized.{ext}",
-                use_container_width=True,
-                key=f"{key_prefix}_dl",
-            )
-        except Exception as exc:  # noqa: BLE001
-            st.error(f"Could not serialize to {out_format}: {exc}")
-
-
-def _gb_reset() -> None:
-    for k in ("gb_phase", "gb_paths", "gb_prop", "gb_outcome"):
-        st.session_state.pop(k, None)
-
-
-with tab_guided:
-    st.markdown("### 🧩 Guided build — pause for your input when the pipeline gets stuck")
-    st.caption(
-        "Runs ingest → propose, then **stops** on any column whose unit it could not "
-        "infer (a `blocked` column). You supply the unit, and it resumes the "
-        "deterministic transform → derive → validate → report tail."
-    )
-
-    phase = st.session_state.get("gb_phase", "idle")
-
-    # ---- Phase: idle → choose inputs and start -----------------------------
-    if phase == "idle":
-        gb_mock_available = mock_data_files()
-        gb_use_mock = st.toggle(
-            "Use bundled mock data",
-            value=use_mock_data() and bool(gb_mock_available),
-            key="gb_use_mock",
-        )
-        gb_paths: list[Path] = []
-        if gb_use_mock:
-            if not gb_mock_available:
-                st.warning("No files in mock_data/.")
-            else:
-                names = [p.name for p in gb_mock_available]
-                default = [n for n in names if "clinic" in n] or names[:1]
-                chosen = st.multiselect("Mock files", names, default=default, key="gb_mock_files")
-                gb_paths = [p for p in gb_mock_available if p.name in chosen]
-        else:
-            gb_uploaded = st.file_uploader(
-                "Upload XPT / CSV / Excel files",
-                type=["xpt", "csv", "tsv", "xlsx", "xls"],
-                accept_multiple_files=True,
-                key="gb_uploader",
-            )
-            if gb_uploaded:
-                tmp_dir = Path(tempfile.mkdtemp(prefix="pcos_guided_"))
-                for f in gb_uploaded:
-                    dest = tmp_dir / f.name
-                    dest.write_bytes(f.getbuffer())
-                    gb_paths.append(dest)
-
-        if st.button("Start guided build →", type="primary", use_container_width=True,
-                     disabled=not gb_paths, key="gb_start"):
-            with st.spinner(f"Ingesting & proposing ({engine_label})…"):
-                try:
-                    prop = app_api.propose_for_review(gb_paths, engine=engine, source=source_val)
-                except Exception as exc:  # noqa: BLE001
-                    st.error(f"Propose failed: {exc}")
-                    st.stop()
-            st.session_state["gb_paths"] = [str(p) for p in gb_paths]
-            st.session_state["gb_prop"] = prop
-            # If nothing is stuck, skip the review step entirely.
-            st.session_state["gb_phase"] = "review" if prop.mapping.blocked else "run_now"
-            st.rerun()
-
-    # ---- Phase: run_now → nothing was stuck, finish straight through --------
-    if st.session_state.get("gb_phase") == "run_now":
-        prop = st.session_state["gb_prop"]
-        paths = st.session_state["gb_paths"]
-        st.success("Nothing was stuck — no columns needed a unit. Finishing…")
-        with st.spinner("Transforming, deriving, validating, reporting…"):
-            st.session_state["gb_outcome"] = app_api.complete_after_review(
-                paths, prop.mapping, engine_used=prop.engine_used,
-                source=source_val, notes=prop.notes,
-            )
-        st.session_state["gb_phase"] = "done"
-        st.rerun()
-
-    # ---- Phase: review → ask the user for the missing units ----------------
-    if st.session_state.get("gb_phase") == "review":
-        prop = st.session_state["gb_prop"]
-        paths = st.session_state["gb_paths"]
-        mapping = prop.mapping
-        blocked = review.pending_units(mapping)
-
-        st.warning(
-            f"⏸️ Paused — **{len(blocked)} column(s)** are stuck on an unknown unit. "
-            "Pick the unit each value is recorded in, then continue. "
-            "Leave one unresolved to pass it through unconverted."
-        )
-        if prop.notes:
-            st.caption(" ".join(prop.notes))
-
-        answers: dict[str, str] = {}
-        for b in blocked:
-            entry = review.entry_for(mapping, b.source_column)
-            cu = entry.unit_canonical if entry else None
-            opts = review.unit_options(cu)
-            choices = ["(leave unresolved)"] + opts
-            default_idx = 1 if len(opts) == 1 else 0
-            c1, c2 = st.columns([2, 3])
-            with c1:
-                st.markdown(f"**{b.source_column}** → `{entry.canonical_field}`")
-                st.caption(f"canonical unit: {cu}")
-            with c2:
-                pick = st.selectbox(
-                    f"Unit for {b.source_column}",
-                    choices,
-                    index=default_idx,
-                    key=f"gb_unit_{b.source_column}",
-                    label_visibility="collapsed",
-                )
-            if pick != "(leave unresolved)":
-                answers[b.source_column] = pick
-
-        col_go, col_skip, col_cancel = st.columns([2, 2, 1])
-        with col_go:
-            if st.button("Apply units & continue →", type="primary",
-                         use_container_width=True, key="gb_apply"):
-                review.apply_unit_answers(mapping, answers)
-                with st.spinner("Resuming pipeline…"):
-                    st.session_state["gb_outcome"] = app_api.complete_after_review(
-                        paths, mapping, engine_used=prop.engine_used,
-                        source=source_val, notes=prop.notes,
-                    )
-                st.session_state["gb_phase"] = "done"
-                st.rerun()
-        with col_skip:
-            if st.button("Skip all & continue", use_container_width=True, key="gb_skip"):
-                with st.spinner("Resuming pipeline…"):
-                    st.session_state["gb_outcome"] = app_api.complete_after_review(
-                        paths, mapping, engine_used=prop.engine_used,
-                        source=source_val, notes=prop.notes,
-                    )
-                st.session_state["gb_phase"] = "done"
-                st.rerun()
-        with col_cancel:
-            if st.button("Cancel", use_container_width=True, key="gb_cancel"):
-                _gb_reset()
-                st.rerun()
-
-    # ---- Phase: done → show results ----------------------------------------
-    if st.session_state.get("gb_phase") == "done":
-        outcome = st.session_state.get("gb_outcome")
-        if outcome is not None:
-            resolved = sum(1 for m in outcome.result.mapping.mappings if m.human_reviewed)
-            if resolved:
-                st.success(f"✅ Built with {resolved} reviewer-confirmed unit(s).")
-            _render_outcome(outcome, out_format, key_prefix="gb")
-        if st.button("↺ Start over", key="gb_over"):
-            _gb_reset()
-            st.rerun()
-
-
-# ===========================================================================
-# TAB 3 — Chat with your data
+# TAB 2 — Chat with your data
 # ===========================================================================
 SUGGESTED_QUESTIONS = [
     "Can this dataset support a Rotterdam diagnosis? Why or why not?",
@@ -597,7 +462,7 @@ with tab_chat:
 
 
 # ===========================================================================
-# TAB 4 — Quick Convert & Profile (from main's src/ pipeline)
+# TAB 3 — Quick Convert & Profile (from main's src/ pipeline)
 # ===========================================================================
 with tab_convert:
     st.markdown("### Upload research dataset(s)")
