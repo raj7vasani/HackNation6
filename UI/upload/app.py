@@ -348,9 +348,38 @@ with tab_harm:
                 )
             st.dataframe(pd.DataFrame(rows), use_container_width=True, hide_index=True)
             if res.mapping.unmapped_columns:
-                st.caption(f"{len(res.mapping.unmapped_columns)} column(s) left unmapped (visible, not guessed).")
+                with st.expander(
+                    f"🔎 {len(res.mapping.unmapped_columns)} column(s) left unmapped (visible, not guessed)"
+                ):
+                    st.dataframe(
+                        pd.DataFrame(
+                            {
+                                "source_file": u.source_file,
+                                "source_column": u.source_column,
+                                "reason": u.reason,
+                            }
+                            for u in res.mapping.unmapped_columns
+                        ),
+                        use_container_width=True,
+                        hide_index=True,
+                    )
             if res.mapping.blocked:
-                st.caption(f"{len(res.mapping.blocked)} column(s) blocked pending unit review.")
+                with st.expander(
+                    f"⏸️ {len(res.mapping.blocked)} column(s) blocked pending unit review"
+                ):
+                    st.dataframe(
+                        pd.DataFrame(
+                            {
+                                "source_file": b.source_file,
+                                "source_column": b.source_column,
+                                "reason": b.reason,
+                                "detail": b.detail or "",
+                            }
+                            for b in res.mapping.blocked
+                        ),
+                        use_container_width=True,
+                        hide_index=True,
+                    )
 
         with r_data:
             st.dataframe(res.table, use_container_width=True, hide_index=True)
