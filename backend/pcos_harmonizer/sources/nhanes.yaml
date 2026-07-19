@@ -1,0 +1,41 @@
+# NHANES source overrides (IMPLEMENTATION_NOTES §7).
+# Authoritative column → canonical field + unit_raw for known NHANES variables,
+# plus per-column sentinel decoding. Extend as more NHANES files are supported.
+
+join_key: SEQN
+
+overrides:
+  # Reproductive health (P_RHQ)
+  RHQ010: { field: age_at_menarche, unit: years }
+  RHD043: { field: age_at_menarche, unit: years }
+  RHQ031: { field: irregular_cycles_self_report }
+  RHD280: { field: hysterectomy_flag }
+  RHQ282: { field: hysterectomy_flag }
+  RHD140: { field: pregnancy_status }
+
+  # Body measures (P_BMX)
+  BMXWT: { field: weight_kg, unit: kg }
+  BMXHT: { field: height_cm, unit: cm }
+  BMXBMI: { field: bmi, unit: kg/m2 }
+  BMXWAIST: { field: waist_circumference_cm, unit: cm }
+  BMXHIP: { field: hip_circumference_cm, unit: cm }
+
+  # Hormones / labs
+  LBXTST: { field: total_testosterone, unit: ng/dL }
+  LBXSHBG: { field: shbg, unit: nmol/L }
+  LBXEST: { field: estradiol, unit: pg/mL }
+  LBXGLU: { field: fasting_glucose, unit: mg/dL }
+  LBXIN: { field: fasting_insulin, unit: uIU/mL }
+  LBXTC: { field: total_cholesterol, unit: mg/dL }
+  LBDHDD: { field: hdl_cholesterol, unit: mg/dL }
+  LBXTR: { field: triglycerides, unit: mg/dL }
+  LBXGH: { field: hba1c_percent, unit: "% (NGSP)" }
+
+# Per-column sentinel decoding: raw code → typed missing code (spec §6).
+sentinels:
+  RHQ010: { 7777: withheld, 9999: unknown }
+  RHD043: { 7777: withheld, 9999: unknown }
+  RHQ031: { 7: withheld, 9: unknown }
+  RHD280: { 7: withheld, 9: unknown }
+  RHQ282: { 7: withheld, 9: unknown }
+  RHD140: { 7: withheld, 9: unknown }

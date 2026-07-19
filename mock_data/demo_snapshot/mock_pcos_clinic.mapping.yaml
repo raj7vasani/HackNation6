@@ -1,0 +1,242 @@
+schema_version: 0.1.0
+source_dataset: mock_pcos_clinic
+generated_at: '2026-07-19T00:00:00+00:00'
+generator: curated-demo-mapping
+join:
+  key: PATID
+  files:
+    - mock_pcos_clinic.xpt
+mappings:
+  - source_file: mock_pcos_clinic.xpt
+    source_column: AGE
+    canonical_field: age_years
+    unit_raw: years
+    unit_canonical: years
+    mapping_confidence: 1.0
+    mapping_rationale: age in years at examination
+    source: manual
+    human_reviewed: true
+  - source_file: mock_pcos_clinic.xpt
+    source_column: MENARCHE
+    canonical_field: age_at_menarche
+    unit_raw: years
+    unit_canonical: years
+    mapping_confidence: 1.0
+    mapping_rationale: age at first menstrual period
+    source: manual
+    human_reviewed: true
+  - source_file: mock_pcos_clinic.xpt
+    source_column: CYCLEN
+    canonical_field: cycle_length_days_typical
+    unit_raw: days
+    unit_canonical: days
+    mapping_confidence: 1.0
+    mapping_rationale: typical cycle length in days
+    source: manual
+    human_reviewed: true
+  - source_file: mock_pcos_clinic.xpt
+    source_column: CYCYR
+    canonical_field: cycles_per_year
+    unit_raw: count
+    unit_canonical: count
+    mapping_confidence: 1.0
+    mapping_rationale: number of periods in the last year
+    source: manual
+    human_reviewed: true
+  - source_file: mock_pcos_clinic.xpt
+    source_column: IRREG
+    canonical_field: irregular_cycles_self_report
+    mapping_confidence: 1.0
+    mapping_rationale: self-reported irregular cycles (1=yes, 2=no)
+    source: manual
+    human_reviewed: true
+    value_map:
+      '1': true
+      '2': false
+  - source_file: mock_pcos_clinic.xpt
+    source_column: TESTO
+    canonical_field: total_testosterone
+    unit_raw: ng/dL
+    unit_canonical: nmol/L
+    mapping_confidence: 1.0
+    mapping_rationale: total serum testosterone
+    source: manual
+    human_reviewed: true
+  - source_file: mock_pcos_clinic.xpt
+    source_column: SHBG
+    canonical_field: shbg
+    unit_raw: nmol/L
+    unit_canonical: nmol/L
+    mapping_confidence: 1.0
+    mapping_rationale: sex hormone binding globulin
+    source: manual
+    human_reviewed: true
+  - source_file: mock_pcos_clinic.xpt
+    source_column: ANDRASSY
+    canonical_field: androgen_assay_method
+    mapping_confidence: 1.0
+    mapping_rationale: testosterone assay method
+    source: manual
+    human_reviewed: true
+    value_map:
+      lcmsms: lcmsms
+      immunoassay: immunoassay
+  - source_file: mock_pcos_clinic.xpt
+    source_column: HIRSUT
+    canonical_field: hirsutism_flag
+    mapping_confidence: 1.0
+    mapping_rationale: clinician-assessed hirsutism (1=yes, 2=no)
+    source: manual
+    human_reviewed: true
+    value_map:
+      '1': true
+      '2': false
+  - source_file: mock_pcos_clinic.xpt
+    source_column: GLU
+    canonical_field: fasting_glucose
+    unit_raw: mg/dL
+    unit_canonical: mmol/L
+    mapping_confidence: 1.0
+    mapping_rationale: fasting plasma glucose
+    source: manual
+    human_reviewed: true
+  - source_file: mock_pcos_clinic.xpt
+    source_column: INS
+    canonical_field: fasting_insulin
+    unit_raw: uIU/mL
+    unit_canonical: pmol/L
+    mapping_confidence: 1.0
+    mapping_rationale: fasting serum insulin
+    source: manual
+    human_reviewed: true
+  - source_file: mock_pcos_clinic.xpt
+    source_column: WT
+    canonical_field: weight_kg
+    unit_raw: lb
+    unit_canonical: kg
+    mapping_confidence: 1.0
+    mapping_rationale: body weight in pounds
+    source: manual
+    human_reviewed: true
+  - source_file: mock_pcos_clinic.xpt
+    source_column: HT
+    canonical_field: height_cm
+    unit_raw: in
+    unit_canonical: cm
+    mapping_confidence: 1.0
+    mapping_rationale: standing height in inches
+    source: manual
+    human_reviewed: true
+  - source_file: mock_pcos_clinic.xpt
+    source_column: WAIST
+    canonical_field: waist_circumference_cm
+    unit_raw: cm
+    unit_canonical: cm
+    mapping_confidence: 1.0
+    mapping_rationale: waist circumference
+    source: manual
+    human_reviewed: true
+  - source_file: mock_pcos_clinic.xpt
+    source_column: HIP
+    canonical_field: hip_circumference_cm
+    unit_raw: cm
+    unit_canonical: cm
+    mapping_confidence: 1.0
+    mapping_rationale: hip circumference
+    source: manual
+    human_reviewed: true
+  - source_file: mock_pcos_clinic.xpt
+    source_column: OCUSE
+    canonical_field: hormonal_contraceptive_use
+    mapping_confidence: 1.0
+    mapping_rationale: hormonal contraceptive use status
+    source: manual
+    human_reviewed: true
+    value_map:
+      current: current
+      former: former
+      never: never
+  - source_file: mock_pcos_clinic.xpt
+    source_column: PREG
+    canonical_field: pregnancy_status
+    mapping_confidence: 1.0
+    mapping_rationale: pregnancy status (1=yes, 2=no)
+    source: manual
+    human_reviewed: true
+    value_map:
+      '1': pregnant
+      '2': not_pregnant
+  - source_file: mock_pcos_clinic.xpt
+    source_column: HYSTER
+    canonical_field: hysterectomy_flag
+    mapping_confidence: 1.0
+    mapping_rationale: history of hysterectomy (1=yes, 2=no)
+    source: manual
+    human_reviewed: true
+    value_map:
+      '1': true
+      '2': false
+  - source_file: mock_pcos_clinic.xpt
+    source_column: AFCL
+    canonical_field: antral_follicle_count_left
+    unit_raw: count
+    unit_canonical: count
+    mapping_confidence: 1.0
+    mapping_rationale: antral follicle count, left ovary
+    source: manual
+    human_reviewed: true
+  - source_file: mock_pcos_clinic.xpt
+    source_column: AFCR
+    canonical_field: antral_follicle_count_right
+    unit_raw: count
+    unit_canonical: count
+    mapping_confidence: 1.0
+    mapping_rationale: antral follicle count, right ovary
+    source: manual
+    human_reviewed: true
+  - source_file: mock_pcos_clinic.xpt
+    source_column: OVL
+    canonical_field: ovarian_volume_left_ml
+    unit_raw: mL
+    unit_canonical: mL
+    mapping_confidence: 1.0
+    mapping_rationale: ovarian volume, left ovary
+    source: manual
+    human_reviewed: true
+  - source_file: mock_pcos_clinic.xpt
+    source_column: OVR
+    canonical_field: ovarian_volume_right_ml
+    unit_raw: mL
+    unit_canonical: mL
+    mapping_confidence: 1.0
+    mapping_rationale: ovarian volume, right ovary
+    source: manual
+    human_reviewed: true
+  - source_file: mock_pcos_clinic.xpt
+    source_column: AMH
+    canonical_field: amh
+    unit_raw: ng/mL
+    unit_canonical: pmol/L
+    mapping_confidence: 1.0
+    mapping_rationale: anti-Mullerian hormone
+    source: manual
+    human_reviewed: true
+  - source_file: mock_pcos_clinic.xpt
+    source_column: PCOMTHR
+    canonical_field: pcom_threshold_applied
+    mapping_confidence: 1.0
+    mapping_rationale: ultrasound PCOM threshold applied
+    source: manual
+    human_reviewed: true
+  - source_file: mock_pcos_clinic.xpt
+    source_column: EXCLASSD
+    canonical_field: exclusions_assessed_flag
+    mapping_confidence: 1.0
+    mapping_rationale: exclusion conditions assessed (1=yes, 2=no)
+    source: manual
+    human_reviewed: true
+    value_map:
+      '1': true
+      '2': false
+unmapped_columns: []
+blocked: []

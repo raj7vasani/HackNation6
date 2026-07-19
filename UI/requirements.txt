@@ -1,0 +1,4 @@
+# UI dependencies. The Streamlit app imports the backend package directly, so
+# install the backend requirements too:  pip install -r backend/requirements.txt
+streamlit>=1.30
+pandas>=2.0

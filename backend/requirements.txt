@@ -1,0 +1,10 @@
+pandas>=2.0
+pyreadstat>=1.2       # XPT read (+ variable labels) and XPT write
+openpyxl>=3.1         # XLSX read/write
+pyarrow>=14.0         # Parquet output
+pint>=0.23            # unit conversion (physical + molar)
+pyyaml>=6.0           # mapping file + source overrides
+jsonschema>=4.0       # validate output against pcos_schema_v0.1.json
+pydantic>=2.0         # mapping/profile models, structured LLM output
+openai>=1.0           # LLM proposer
+python-dotenv>=1.0    # read .env
