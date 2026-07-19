@@ -1,0 +1,13 @@
+[server]
+# Required for local file uploads. Cursor's Simple Browser (and other iframes)
+# strip/mis-handle the _streamlit_xsrf cookie, which makes st.file_uploader
+# return AxiosError 403. Fine for local hackathon use; re-enable for production.
+enableXsrfProtection = false
+enableCORS = false
+maxUploadSize = 200
+maxMessageSize = 200
+address = "localhost"
+
+[browser]
+gatherUsageStats = false
+serverAddress = "localhost"
