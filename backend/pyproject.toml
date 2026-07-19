@@ -1,0 +1,10 @@
+[project]
+name = "pcos-harmonizer"
+version = "0.1.0"
+description = "Backend pipeline that maps raw research datasets to the PCOS canonical schema."
+requires-python = ">=3.10"
+
+[tool.pytest.ini_options]
+pythonpath = ["."]
+testpaths = ["tests"]
+addopts = "-q"
