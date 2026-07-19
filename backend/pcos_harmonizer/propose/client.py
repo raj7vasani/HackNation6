@@ -48,6 +48,26 @@ class LLMClient:
                 last_err = exc
         raise ValueError(f"LLM did not return valid JSON after retries: {last_err}")
 
+    def complete_text(
+        self,
+        system: str,
+        messages: list[dict[str, str]],
+        temperature: float = 0.2,
+    ) -> str:
+        """Free-text chat completion over a ``[{role, content}, ...]`` history.
+
+        Used by the (read-only) data-chat assistant. Unlike :meth:`complete_json`
+        this returns prose, not a parsed object, and keeps a small non-zero
+        temperature so explanations read naturally.
+        """
+        client = self._ensure()
+        resp = client.chat.completions.create(
+            model=self.model,
+            messages=[{"role": "system", "content": system}, *messages],
+            temperature=temperature,
+        )
+        return resp.choices[0].message.content or ""
+
 
 def get_default_client() -> LLMClient | None:
     """Return a client if an API key is configured, else None (→ heuristic mode)."""

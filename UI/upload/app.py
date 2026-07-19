@@ -27,6 +27,11 @@ for _p in (BACKEND, REPO_ROOT):
         sys.path.insert(0, str(_p))
 
 from pcos_harmonizer import app_api, to_bytes  # noqa: E402
+from pcos_harmonizer.chat import (  # noqa: E402
+    DataChatAssistant,
+    build_data_context,
+    chat_available,
+)
 from pcos_harmonizer.config import (  # noqa: E402
     get_openai_api_key,
     mock_data_files,
@@ -116,7 +121,9 @@ with st.sidebar:
     source_val = None if source == "(none)" else source
 
 
-tab_harm, tab_convert = st.tabs(["🧬 Schema Harmonizer", "⚡ Quick Convert & Profile"])
+tab_harm, tab_chat, tab_convert = st.tabs(
+    ["🧬 Schema Harmonizer", "💬 Chat with your data", "⚡ Quick Convert & Profile"]
+)
 
 
 # ===========================================================================
@@ -291,7 +298,90 @@ with tab_harm:
 
 
 # ===========================================================================
-# TAB 2 — Quick Convert & Profile (from main's src/ pipeline)
+# TAB 2 — Chat with your data
+# ===========================================================================
+SUGGESTED_QUESTIONS = [
+    "Can this dataset support a Rotterdam diagnosis? Why or why not?",
+    "Which columns had unit conversions, and what were they?",
+    "What are the biggest data-quality gaps I should know about?",
+]
+
+
+def _run_chat_turn(question: str) -> None:
+    """Append the question + assistant answer to history, then rerun to render."""
+    history = st.session_state.setdefault("chat_history", [])
+    history.append({"role": "user", "content": question})
+    assistant = DataChatAssistant(st.session_state["chat_context"])
+    try:
+        with st.spinner("Reading your standardized data…"):
+            answer = assistant.answer(history)
+    except Exception as exc:  # noqa: BLE001
+        answer = f"⚠️ {exc}"
+    history.append({"role": "assistant", "content": answer})
+    st.rerun()
+
+
+with tab_chat:
+    st.markdown("### 💬 Chat with your standardized data")
+
+    outcome = st.session_state.get("outcome")
+    if outcome is None:
+        st.info(
+            "Run an analysis in the **Schema Harmonizer** tab first. Once your dataset "
+            "is standardized, it loads into the assistant automatically and you can ask "
+            "questions about it here."
+        )
+    elif not chat_available():
+        st.warning(
+            "Data chat needs an OpenAI API key. Set `OPENAI_API_KEY` in your `.env` and "
+            "restart. (The mapping pipeline runs offline, but free-form chat does not.)"
+        )
+    else:
+        res = outcome.result
+        # Rebuild context + reset history whenever a new analysis is loaded.
+        token = id(res)
+        if st.session_state.get("chat_token") != token:
+            st.session_state["chat_token"] = token
+            st.session_state["chat_context"] = build_data_context(res)
+            st.session_state["chat_history"] = []
+
+        cov = res.coverage
+        top_l, top_r = st.columns([4, 1])
+        with top_l:
+            st.caption(
+                f"✅ Loaded into context: **{cov['n_subjects']} subjects**, "
+                f"**{len(res.mapping.active_mappings())} mapped columns**, "
+                f"coverage verdict *“{cov['verdict']}”*. Ask anything about it below."
+            )
+        with top_r:
+            if st.button("🧹 Clear chat", use_container_width=True, key="chat_clear"):
+                st.session_state["chat_history"] = []
+                st.rerun()
+
+        history = st.session_state.get("chat_history", [])
+
+        if not history:
+            st.markdown("**Try asking:**")
+            for i, q in enumerate(SUGGESTED_QUESTIONS):
+                if st.button(q, key=f"chat_suggest_{i}", use_container_width=True):
+                    _run_chat_turn(q)
+
+        for msg in history:
+            with st.chat_message(msg["role"], avatar="🧑‍⚕️" if msg["role"] == "user" else "🤖"):
+                st.markdown(msg["content"])
+
+        user_q = st.chat_input("Ask about your standardized data…")
+        if user_q:
+            _run_chat_turn(user_q)
+
+        st.caption(
+            "The assistant explains the harmonized data — it does not recompute values "
+            "or give medical advice. Answers are grounded in this run's snapshot only."
+        )
+
+
+# ===========================================================================
+# TAB 3 — Quick Convert & Profile (from main's src/ pipeline)
 # ===========================================================================
 with tab_convert:
     st.markdown("### Upload research dataset(s)")
