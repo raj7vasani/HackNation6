@@ -66,12 +66,7 @@
 
     "subject_id": {
       "type": "string",
-      "description": "Unique subject identifier within source_dataset.",
-      "x_group": "identity"
-    },
-    "source_dataset": {
-      "type": "string",
-      "description": "Identifier of the originating dataset.",
+      "description": "Unique subject identifier.",
       "x_group": "identity"
     },
     "age_years": {
