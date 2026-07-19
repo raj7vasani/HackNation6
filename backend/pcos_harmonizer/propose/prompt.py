@@ -22,37 +22,38 @@ from __future__ import annotations
 import json
 from typing import Any
 
-COLUMN_MAPPING_SYSTEM = """\
-You are a clinical data harmonization assistant for a PCOS (polycystic ovary
-syndrome) research schema. Your job is to map columns from a raw research dataset
-onto the canonical schema fields.
+from . import _field_catalog
 
-You will receive:
-- candidate_fields: the canonical fields you may map to. Each has a name, group,
-  type (number/integer/boolean/enum/string), unit (the canonical unit), allowed
-  enum values, and hints (synonyms, including known dataset variable codes).
-- columns: the source columns to map, each as {question_id, question}, where
-  question_id is the raw column name and question is its human-readable label.
+COLUMN_MAPPING_SYSTEM = """You are a data-mapping assistant for a PCOS research harmonization tool.
+You will be given a list of source columns from one or more datasets, and a
+catalog of canonical schema fields. Your job is to propose, for each source
+column, which canonical field (if any) it corresponds to.
 
 Rules:
-1. For each source column, pick the single best canonical_field, or null if none
-   is a clear match. PREFER null OVER A GUESS — an unmapped column is visible in
-   the coverage report, but a wrong mapping silently corrupts the data.
-2. Match on clinical meaning using the question text and the field hints, not on
-   superficial string similarity.
-3. Infer unit_raw ONLY when the question text states or clearly implies it (e.g.
-   "(mg/dL)", "in years", "weight in pounds"). Otherwise set unit_raw to null.
-   NEVER convert values — a downstream deterministic converter does that; you only
-   report the raw unit you observed.
-4. Do not map two source columns to the same field unless they truly duplicate.
-5. mapping_confidence is 0.0–1.0. Put your unit reasoning and the clinical
-   justification in mapping_rationale (one short sentence).
+- Return one entry per source column. Never omit a column; unmappable columns
+  get field_id: null with an unmapped_reason.
+- Prefer field_id: null over a low-confidence guess. A gap is visible and
+  reviewable later; a wrong mapping is not, and can silently corrupt an
+  analysis.
+- Every field in the catalog is mappable, including fields that could also be
+  computed from other fields (e.g. bmi, homa_ir). If a source column holds
+  one of these directly, map it — the source value takes precedence over any
+  fallback computation performed later.
+- Infer the source unit from the column's value range, using the "range" and
+  "note" fields in the catalog as a guide. Report the unit; do not convert
+  the value yourself.
+- If you cannot determine the unit with reasonable confidence, set
+  unit_raw: null and add the flag UNIT_UNKNOWN. Do not guess.
+- Map columns to fields only. Do not translate individual data values to
+  enum values, and do not classify missingness/sentinel codes (e.g. 777,
+  999) — both of those happen in a separate pass, not this one.
+- Base every judgment on the column's name, label (if given), and sample
+  values. Do not assume anything about the source dataset beyond what is
+  shown to you.
 
-Return ONLY a JSON object of the form:
-{"mappings":[{"question_id":"...","canonical_field":"..."|null,
-"unit_raw":"..."|null,"mapping_confidence":0.0,"mapping_rationale":"..."}]}
-Every input column must appear exactly once in "mappings".
-"""
+Respond only with JSON conforming to the provided response schema. Do not
+include commentary, explanations, or markdown formatting outside the JSON."""
+
 
 VALUE_MAPPING_SYSTEM = """\
 You standardize the categorical values of ONE column to the allowed values of a
@@ -85,6 +86,15 @@ Return ONLY a JSON object of the form:
 Every input raw value must appear exactly once across "value_map" (as a mapping)
 and/or be listed in "unmapped".
 """
+
+
+def build_system_prompt(schema_path="pcos_schema_v0.1.json"):
+    catalog = _field_catalog.build_catalog(schema_path)
+    return (
+        COLUMN_MAPPING_SYSTEM
+        + "\n\nCanonical field catalog:\n"
+        + json.dumps(catalog, separators=(",", ":"))
+    )
 
 
 def build_column_mapping_prompt(
