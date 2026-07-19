@@ -37,7 +37,7 @@ def field_type(field_spec):
     return "string"
 
 
-def build_catalog(schema_path: str | Path | None = None):
+def build_field_catalog(schema_path: str | Path | None = None):
     path = Path(schema_path) if schema_path else SCHEMA_PATH
     with open(path, encoding="utf-8") as fh:
         schema = json.load(fh)
@@ -77,3 +77,20 @@ def build_catalog(schema_path: str | Path | None = None):
         ],
         "fields": fields,
     }
+
+
+MISSING_CODES = ["not_measured", "below_lod", "not_applicable", "withheld", "unknown"]
+
+def build_value_options(field_enum_values):
+    """field_enum_values: the target field's own allowed values, e.g.
+    ["current", "former", "never", "unknown"] for hormonal_contraceptive_use."""
+    options = [
+        {"id": i + 1, "label": v}
+        for i, v in enumerate(field_enum_values)
+    ]
+    base = len(field_enum_values)
+    options += [
+        {"id": base + i + 1, "label": f"{v} (missing/sentinel code, not a real answer)"}
+        for i, v in enumerate(MISSING_CODES)
+    ]
+    return options
