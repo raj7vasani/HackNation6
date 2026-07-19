@@ -11,14 +11,19 @@ def find_repo_root(start: Path | str | None = None) -> Path:
     """Walk upward until the canonical schema JSON is found."""
     p = Path(start or __file__).resolve()
     for parent in [p, *p.parents]:
-        if (parent / "docs" / "pcos_schema_v0.1.json").exists():
+        if (
+            (parent / "backend" / "pcos_harmonizer" / "resources" / "pcos_schema_v0.1.json").exists()
+            or (parent / "docs" / "pcos_schema_v0.1.json").exists()
+        ):
             return parent
     # Fallback: backend/pcos_harmonizer/config.py → repo root is two levels up.
     return Path(__file__).resolve().parents[2]
 
 
 REPO_ROOT = find_repo_root()
-SCHEMA_PATH = REPO_ROOT / "docs" / "pcos_schema_v0.1.json"
+SCHEMA_PATH = REPO_ROOT / "backend" / "pcos_harmonizer" / "resources" / "pcos_schema_v0.1.json"
+if not SCHEMA_PATH.exists():
+    SCHEMA_PATH = REPO_ROOT / "docs" / "pcos_schema_v0.1.json"
 DATA_DIR = REPO_ROOT / "data"
 MOCK_DATA_DIR = REPO_ROOT / "mock_data"
 OUTPUT_DIR = REPO_ROOT / "outputs"

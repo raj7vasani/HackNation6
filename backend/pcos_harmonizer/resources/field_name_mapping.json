@@ -1,0 +1,121 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://example.org/pcos/llm_mapping_response/v0.1.json",
+  "title": "LLM Field Name Mapping Response",
+  "description": "Proposed mappings from source columns onto the PCOS canonical schema. One entry per input column. The model maps columns to fields and infers source units; it does not map data values, convert values, or compute derived fields.",
+  "type": "object",
+  "required": [
+    "mappings"
+  ],
+  "additionalProperties": false,
+  "properties": {
+    "mappings": {
+      "type": "array",
+      "description": "One entry per source column in the input. Every column must appear exactly once, including unmappable ones.",
+      "items": {
+        "$ref": "#/$defs/mapping"
+      }
+    }
+  },
+  "$defs": {
+    "mapping": {
+      "type": "object",
+      "required": [
+        "column_id",
+        "field_id",
+        "confidence"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "column_id": {
+          "type": "integer",
+          "minimum": 1,
+          "description": "Id of the source column from the input."
+        },
+        "field_id": {
+          "type": [
+            "integer",
+            "null"
+          ],
+          "minimum": 1,
+          "description": "Canonical field id from the catalog. Null when no field applies - prefer null over a low-confidence guess."
+        },
+        "confidence": {
+          "type": "number",
+          "minimum": 0,
+          "maximum": 1,
+          "description": "Confidence that this column corresponds to this field."
+        },
+        "unit_raw": {
+          "type": [
+            "string",
+            "null"
+          ],
+          "description": "Source unit, stated or inferred from the value range. Null if it cannot be determined - never guess. Omit for non-numeric fields."
+        },
+        "unit_confidence": {
+          "type": [
+            "number",
+            "null"
+          ],
+          "minimum": 0,
+          "maximum": 1,
+          "description": "Confidence in unit_raw, separate from mapping confidence. A column may be confidently identified while its unit stays ambiguous."
+        },
+        "flags": {
+          "type": "array",
+          "description": "Conditions requiring human attention before this mapping is used.",
+          "items": {
+            "type": "string",
+            "enum": [
+              "UNIT_UNKNOWN",
+              "UNIT_AMBIGUOUS",
+              "MULTIPLE_FIELDS_POSSIBLE",
+              "PARTIAL_MATCH",
+              "VALUES_OUT_OF_RANGE"
+            ]
+          }
+        },
+        "unmapped_reason": {
+          "type": [
+            "string",
+            "null"
+          ],
+          "enum": [
+            "out_of_scope",
+            "no_matching_field",
+            "identifier_or_metadata",
+            "ambiguous",
+            "empty_column",
+            null
+          ],
+          "description": "Required when field_id is null."
+        }
+      },
+      "allOf": [
+        {
+          "if": {
+            "properties": {
+              "field_id": {
+                "type": "null"
+              }
+            },
+            "required": [
+              "field_id"
+            ]
+          },
+          "then": {
+            "required": [
+              "unmapped_reason"
+            ],
+            "properties": {
+              "unmapped_reason": {
+                "type": "string"
+              }
+            }
+          }
+        }
+      ]
+    }
+  }
+}

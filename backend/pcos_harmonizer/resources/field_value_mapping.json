@@ -1,0 +1,66 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://example.org/pcos/llm_value_mapping_response/v0.1.json",
+  "title": "LLM Value Mapping Response",
+  "description": "Proposed mapping from each observed source value to an option id from the input's options list. One call covers one column; no column identifier is echoed back.",
+  "type": "object",
+  "required": ["mappings"],
+  "additionalProperties": false,
+
+  "properties": {
+    "mappings": {
+      "type": "array",
+      "description": "One entry per value in the input. Every value must appear exactly once.",
+      "items": { "$ref": "#/$defs/value_mapping" }
+    }
+  },
+
+  "$defs": {
+    "value_mapping": {
+      "type": "object",
+      "required": ["raw", "target_id", "confidence"],
+      "additionalProperties": false,
+      "properties": {
+        "raw": {
+          "type": ["string", "number", "boolean"],
+          "description": "Matches the raw value from the input, verbatim."
+        },
+        "target_id": {
+          "type": ["integer", "null"],
+          "minimum": 1,
+          "description": "The id of the chosen option from the input's options list. Null when nothing fits - prefer null over a low-confidence guess."
+        },
+        "confidence": {
+          "type": "number",
+          "minimum": 0,
+          "maximum": 1
+        },
+        "flags": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "enum": ["VALUE_AMBIGUOUS", "LOW_FREQUENCY_UNCLASSIFIED", "CONFLICTS_WITH_SIMILAR_VALUE"]
+          }
+        },
+        "unmapped_reason": {
+          "type": ["string", "null"],
+          "enum": ["no_matching_value", "ambiguous", "insufficient_context", null],
+          "description": "Required when target_id is null."
+        }
+      },
+
+      "allOf": [
+        {
+          "if": {
+            "properties": { "target_id": { "type": "null" } },
+            "required": ["target_id"]
+          },
+          "then": {
+            "required": ["unmapped_reason"],
+            "properties": { "unmapped_reason": { "type": "string" } }
+          }
+        }
+      ]
+    }
+  }
+}

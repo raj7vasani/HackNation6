@@ -4,6 +4,9 @@ Read fresh at runtime — never checked in — so the catalog can't drift from
 the schema. Every field is included; there is no unmappable set.
 """
 import json
+from pathlib import Path
+
+from ..config import SCHEMA_PATH
 
 
 def enum_values(field_spec):
@@ -34,8 +37,10 @@ def field_type(field_spec):
     return "string"
 
 
-def build_catalog(schema_path="pcos_schema_v0.1.json"):
-    schema = json.load(open(schema_path))
+def build_catalog(schema_path: str | Path | None = None):
+    path = Path(schema_path) if schema_path else SCHEMA_PATH
+    with open(path, encoding="utf-8") as fh:
+        schema = json.load(fh)
     props = schema["properties"]
 
     fields = []

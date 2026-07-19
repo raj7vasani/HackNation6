@@ -22,6 +22,7 @@ from __future__ import annotations
 import json
 from typing import Any
 
+from ..config import SCHEMA_PATH
 from . import _field_catalog
 
 COLUMN_MAPPING_SYSTEM = """You are a data-mapping assistant for a PCOS research harmonization tool.
@@ -56,40 +57,12 @@ include commentary, explanations, or markdown formatting outside the JSON."""
 
 
 VALUE_MAPPING_SYSTEM = """\
-You standardize the categorical values of ONE column to the allowed values of a
-canonical PCOS schema field.
-
-You will receive:
-- canonical_field: the target field name.
-- column_description: the source column's label/question text. It OFTEN contains a
-  code legend such as "(1=yes, 2=no)" or "(1=current, 2=former, 3=never)". When
-  present, this legend is authoritative — use it to decide the direction.
-- allowed_values: the exact set of values you may output (enum members, or the
-  booleans true/false).
-- unique_values: the distinct raw values found in the column (you are given the
-  unique set, not every row).
-
-Rules:
-1. If column_description contains a code legend, follow it exactly. Do NOT guess
-   the direction of a numeric code without the legend.
-2. Map each raw value to exactly one allowed value, or null if you are not sure.
-   PREFER null OVER A GUESS — unmapped values are flagged for human review, never
-   silently dropped or coerced.
-3. Absent a legend, common encodings are 1/yes/y/true → the "true"/"current"/
-   "present" sense; 2/0/no/n/false → the "false"/"never"/"absent" sense.
-4. Never invent a value outside allowed_values.
-5. confidence is 0.0–1.0.
-
-Return ONLY a JSON object of the form:
-{"value_map":[{"raw":"...","canonical":<allowed>|null,"confidence":0.0}],
-"unmapped":["..."],"rationale":"..."}
-Every input raw value must appear exactly once across "value_map" (as a mapping)
-and/or be listed in "unmapped".
 """
 
 
-def build_system_prompt(schema_path="pcos_schema_v0.1.json"):
-    catalog = _field_catalog.build_catalog(schema_path)
+def build_system_prompt(schema_path: str | None = None):
+    """Return the system prompt for a column-mapping batch."""
+    catalog = _field_catalog.build_catalog(schema_path or SCHEMA_PATH)
     return (
         COLUMN_MAPPING_SYSTEM
         + "\n\nCanonical field catalog:\n"
@@ -112,7 +85,7 @@ def build_column_mapping_prompt(
         ensure_ascii=False,
         indent=2,
     )
-    return COLUMN_MAPPING_SYSTEM, user
+    return build_system_prompt(), user
 
 
 def build_value_mapping_prompt(
