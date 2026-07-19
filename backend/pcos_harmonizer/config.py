@@ -33,7 +33,7 @@ _INPUT_SUFFIXES = (".xpt", ".csv", ".tsv", ".xlsx", ".xls")
 
 # Confidence below this blocks a mapping for human review rather than applying it.
 CONFIDENCE_THRESHOLD = float(os.environ.get("PCOS_CONFIDENCE_THRESHOLD", "0.5"))
-DEFAULT_MODEL = os.environ.get("PCOS_LLM_MODEL", "gpt-4o-mini")
+DEFAULT_MODEL = os.environ.get("PCOS_LLM_MODEL", "gpt-4.1-mini")
 
 
 @lru_cache(maxsize=1)
