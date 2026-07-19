@@ -34,8 +34,8 @@ input files
 [5] transform ─────── deterministic: unit conversion, missingness coding,
     │                 enum normalization. Reads mapping file only.
     ▼
-[6] derive ────────── deterministic: arithmetic + clinical logic (spec §7)
-    │
+[6] fallback ──────── deterministic: compute fields per x_fallback (spec §7)
+    │                 where no source column mapped
     ▼
 [7] validate ──────── run x_validator_rules, emit warnings
     │
@@ -43,12 +43,23 @@ input files
 [8] report ────────── coverage report + standardized output
 ```
 
-Notes:
-- [1] `sample values` (5-10) exclude NaN values when possible
-- [4] the UI should split review by section
-- [4] UI should take confidence into account so it puts "low" confidence mappings into view
-- [4] High confidence mappings should still be reviewable but only if user wishes to do it
-- [5] Need to ensure our unit conversions are comprensive, if we don't have a mapping, the user should provide a factor from unit_raw to unit_canonical
+Notes on individual steps:
+
+- **[1]** Sample values (5–10) should exclude `NaN` where possible, but not
+  sentinel-looking outliers — those are exactly what unit and sentinel
+  detection need. See §3 and §5.
+- **[4]** Split the review UI by schema group (identity, criterion 1/2/3,
+  metabolic, ...) rather than one flat list — matches the schema's own
+  structure and lets a reviewer focus on one criterion at a time.
+- **[4]** Surface low-confidence mappings first; a reviewer's time is better
+  spent there than re-confirming obvious ones.
+- **[4]** High-confidence mappings should stay reviewable, just not forced into
+  view by default. Auto-surfacing everything defeats the point of triaging by
+  confidence.
+- **[5]** Unit coverage will not be complete. Where `unit_raw` has no known
+  conversion, prompt the reviewer for a manual factor (`unit_raw` →
+  `unit_canonical`) rather than blocking silently or guessing. Record it in
+  `transformation_applied` like any other conversion.
 
 **The hard boundary is between [3] and [5].** The LLM proposes; deterministic
 code executes. No LLM call after step 3. This is the project's core claim — if
@@ -125,7 +136,7 @@ These have no clean molar route. Hard-code them and comment why.
 | `triglycerides` | mg/dL → mmol/L × 0.0113 | Molar mass varies with fatty-acid composition; 0.0113 is a conventional average |
 | `shbg`, `lh`, `fsh`, `tsh` | none typically required | Already conventionally nmol/L, IU/L, IU/L, mIU/L — still record `unit_raw` |
 
-> `free_androgen_index` and `homa_ir` are **derived**, not converted. See §4.
+> `free_androgen_index` and `homa_ir` are **computed fallbacks**, not conversions. See §4.
 
 ### Testing the converter
 
@@ -148,6 +159,28 @@ not during the demo.
 ---
 
 ## 3. Unit *detection* is the hard part, not conversion
+
+### Field ids are frozen — read them, never compute them
+
+Each field in `pcos_schema_v0.1.json` carries `x_id`. Build the catalog by
+reading these, never by enumerating sorted field names. Sort-order ids look
+identical today and silently renumber the moment a field is added — `x_id: 44`
+becomes a different field, and every stored mapping file now resolves to the
+wrong column.
+
+Rules:
+
+- Adding a field: take `x_field_ids.next_available_id`, then increment it.
+  Alphabetical position is irrelevant.
+- Removing a field: append the id to `x_field_ids.retired_ids`. Never reuse it.
+- Renaming a field: keep the id. The id identifies the concept, the name is a
+  label.
+- Catalog generation must fail loudly on a field with no `x_id` rather than
+  falling back to a computed one.
+
+Store `schema_version` in every mapping file. When resolving a mapping file
+written against an older version, check for retired ids before assuming a
+mapping is valid.
 
 The arithmetic is solved. The real problem is a column of bare numbers with no
 unit metadata — the common case in real datasets.
@@ -175,7 +208,9 @@ A weight of `154` read as kg instead of lb produces a BMI of 66.8 instead of
 30.4, and nothing downstream catches it. Blocking is the correct behaviour and
 it demos well — show the tool refusing.
 
-**Source-specific overrides beat inference.** Ship a small file:
+**Source-specific overrides beat inference.** These are applied in your backend
+before and after the LLM call — the model is never told which dataset it is
+looking at. Ship a small file:
 
 ```yaml
 # sources/nhanes.yaml
@@ -190,83 +225,158 @@ the mapping is marked `source: override` with confidence 1.0.
 
 ---
 
-## 4. Derivation ≠ conversion
+## 4. Computed fallbacks
 
-Two distinct mechanisms; keep them in separate modules.
+Every field is populated from a source column where one exists. Seven fields may
+be computed from other canonical fields when the source has none. Both routes
+produce the same field.
 
-- **Conversion** rescales a value that *was* present. Same measurement.
-- **Derivation** computes a field that was *absent*, from fields that were
-  present.
+**Fallback is not conversion.** Conversion rescales a value that *was* present
+(§2). A fallback computes a value that was *absent*. A dataset reporting
+testosterone in ng/dL needs a conversion; a dataset reporting testosterone and
+SHBG but no FAI permits a fallback.
 
-Spec §7 defines *what* each derived field means and when it is valid. This
-section covers *how* to compute them.
+### Precedence
 
-### Provenance emission
+A source-supplied value always wins. Compute only when nothing mapped to the
+field. Where a source supplies both `bmi` and its components, keep the source
+value, compute the fallback anyway, and record it in `transformation_applied`
+for comparison — disagreement beyond rounding tolerance emits a warning. That's
+a free data-quality check worth surfacing in the demo.
 
-Every mapped value emits the record in spec §5. Implementation points:
+Set `value_source` on every populated field: `source` or `computed`. It is
+required in the provenance record.
 
-- `human_reviewed` defaults `false` and is **never** set by code. Only an
-  explicit reviewer action flips it.
-- `value_raw` and `unit_raw` are retained even when no conversion occurred.
-  Downstream users need to verify, not trust.
-- `transformation_applied` is human-readable, not a code — `"ng/dL -> nmol/L
-  (molar, MW 288.42)"`, not `"CONV_017"`. A reviewer must be able to check it
-  without reading source.
+### Ordering
 
-Worked example — source column `WT` containing `154`:
+```
+1. unit conversion (all mapped fields)
+2. fallbacks, in dependency order
+```
 
-| Field | Value |
+`free_androgen_index` depends on converted testosterone and SHBG; `homa_ir` on
+converted glucose and insulin. Convert everything first, then compute.
+
+### Fallbacks are machine-readable
+
+`x_fallback` is a declarative spec, not prose. One generic evaluator handles all
+seven — no per-field code, and adding a fallback later requires no code change.
+
+```json
+"homa_ir": {
+  "x_fallback": {
+    "op": "expression",
+    "inputs": [
+      { "field": "fasting_glucose",  "unit": "mmol/L" },
+      { "field": "fasting_insulin",  "unit": "u[IU]/mL" }
+    ],
+    "expression": "fasting_glucose * fasting_insulin / 22.5",
+    "output_unit": "{ratio}",
+    "guards": [ { "field": "fasting_status", "condition": "eq", "value": "fasting" } ],
+    "source": "Matthews DR et al., Diabetologia 1985;28:412-419"
+  }
+}
+```
+
+**Contract** (`x_fallback_spec` in the schema):
+
+| Key | Meaning |
 |---|---|
-| `source_column_name` | `WT` |
-| `value_raw` | `154` |
-| `unit_raw` | `lb` (LLM-inferred from range and column name) |
-| `value_canonical` | `69.85` |
-| `unit_canonical` | `kg` |
-| `transformation_applied` | `lb -> kg (pint)` |
-| `mapping_confidence` | `0.88` |
-| `human_reviewed` | `false` |
+| `op` | `expression`, `max`, or `min` |
+| `inputs` | Canonical field plus the unit the expression assumes. **Not always the field's canonical unit** — `homa_ir` needs insulin in µIU/mL, not the canonical pmol/L. Convert before binding. |
+| `expression` | Arithmetic only: `+ - * / **` and parentheses. Field names bind to values. No function calls. |
+| `guards` | All must pass or the field is not computed. `gt`, `gte`, `lt`, `lte`, `eq`, `ne`. |
+| `warnings` | Emitted with the value; do not block. |
+| `output_unit` | UCUM code of the result. Equals the field's `x_unit_ucum` — assert this in tests. |
 
-### Who does what
+**Every input must be present.** A missing input yields `not_measured`, never a
+partial result. This matters for `max`: a per-ovary maximum computed from one
+observed ovary is not the same quantity, since the unobserved side may be larger.
 
-The LLM proposes the column mapping and *infers the source unit* — it writes
-`unit_raw: "lb"`, it does not compute the converted value. Deterministic code
-reads `unit_raw`, applies the conversion, and produces `value_canonical`. No
-model arithmetic anywhere in the numeric path.
+### Reference evaluator
 
-**Precedence rule:** derivation never overwrites a source-supplied value. If the
-source has both `bmi` and its components, keep the source value, compute the
-derived one, and record it in `transformation_applied`. Disagreement beyond
-rounding tolerance emits a warning — this is a free data-quality check and it's
-worth surfacing in the demo.
+```python
+import ast, operator
 
-**Ordering matters.** Derive in dependency order:
+OPS = {ast.Add: operator.add, ast.Sub: operator.sub, ast.Mult: operator.mul,
+       ast.Div: operator.truediv, ast.Pow: operator.pow, ast.USub: operator.neg}
+CMP = {"gt": operator.gt, "gte": operator.ge, "lt": operator.lt,
+       "lte": operator.le, "eq": operator.eq, "ne": operator.ne}
 
+def _eval(node, env):
+    if isinstance(node, ast.Expression): return _eval(node.body, env)
+    if isinstance(node, ast.Constant):   return node.value
+    if isinstance(node, ast.Name):       return env[node.id]
+    if isinstance(node, ast.BinOp):
+        return OPS[type(node.op)](_eval(node.left, env), _eval(node.right, env))
+    if isinstance(node, ast.UnaryOp):    return OPS[type(node.op)](_eval(node.operand, env))
+    raise ValueError(f"disallowed node: {type(node).__name__}")
+
+def compute_fallback(fb, row):
+    """row maps canonical field -> value, already converted to each input's unit."""
+    names = [i["field"] for i in fb["inputs"]]
+    if any(row.get(n) is None for n in names):
+        return None, ["missing_input"]
+
+    for g in fb.get("guards", []):
+        v = row.get(g["field"])
+        if v is None or not CMP[g["condition"]](v, g["value"]):
+            return None, [f"guard_failed:{g['field']}"]
+
+    warnings = [w["message"] for w in fb.get("warnings", [])
+                if row.get(w["field"]) is not None
+                and CMP[w["condition"]](row[w["field"]], w["value"])]
+
+    env = {n: row[n] for n in names}
+    if fb["op"] == "expression":
+        value = _eval(ast.parse(fb["expression"], mode="eval"), env)
+    elif fb["op"] == "max":
+        value = max(env.values())
+    elif fb["op"] == "min":
+        value = min(env.values())
+    else:
+        raise ValueError(f"unknown op: {fb['op']}")
+
+    return value, warnings
 ```
-1. unit conversion (all fields)
-2. arithmetic derivations   → bmi, waist_hip_ratio, free_androgen_index,
-                              homa_ir, lh_fsh_ratio, antral_follicle_count_max,
-                              ovarian_volume_max_ml
-3. criterion flags          → ovulatory_dysfunction_derived,
-                              hyperandrogenism_derived, pcom_flag
-4. diagnosis                → criteria_met → phenotype → pcos_diagnosis_flag
-```
 
-Step 4 depends on step 3, which depends on step 2. Compute
-`free_androgen_index` before evaluating hyperandrogenism, not after.
+Use `ast` with an operator allowlist, never `eval()`. The expressions come from
+a file that could be edited.
 
-**Guard clauses matter more than formulas.** Spec §7.2 lists validity
-conditions for each criterion derivation — suppression under current hormonal
-contraception, antiandrogen use, pregnancy, hysterectomy, and the adolescent
-PCOM window. Implement suppression *first*, then the positive logic. Getting the
-order wrong produces a confident wrong flag, which is the worst failure mode in
-this project.
+**Test to write:** assert every `output_unit` equals the field's `x_unit_ucum`.
+Catches drift between the two in one line.
 
-Where a derivation is invalid, write `not_applicable` — not `false`, and not a
-null. The distinction is load-bearing for downstream analysis.
+### What not to compute
 
-**Do not hardcode biochemical thresholds.** Spec §7.2 is explicit: use the
-source dataset's own reference range where available and record it. Assay-method
-differences make universal cut-points unsafe.
+**No diagnostic algorithm.** Criteria evaluation, phenotype assignment, and case
+definition are interpretations of published guidelines — thresholds, suppression
+conditions, and 2-of-3 logic all involve judgement that differs between research
+groups. The schema deliberately encodes none of it.
+
+If your tool computes an assessment, that is the tool's output. Do not write it
+back into `pcos_diagnosis_flag`, `phenotype`, or `criteria_met` — those record
+what a source reported, and overwriting them destroys the distinction between
+observation and inference.
+
+### Terminology fields
+
+The schema carries `x_unit_ucum` (UCUM code) alongside the human-readable
+`x_unit`, and `x_loinc` on laboratory and measurement fields.
+
+- **Use `x_unit_ucum` for machine processing.** `pint` accepts UCUM directly.
+  `x_unit` is for display and documentation.
+- **`x_loinc` is metadata, not a mapping key.** Emit it in output so downstream
+  consumers can join against clinical systems. Do not use it to drive column
+  mapping — source datasets rarely carry LOINC codes, and where they do, they
+  should be treated as a high-confidence hint rather than an override.
+- **Codes marked `x_loinc_verified: false` are provisional.** Confirm against
+  the LOINC database before publishing. Currently: `androstenedione`,
+  `free_t4`, `waist_circumference_cm`, `ogtt_2hr_glucose`.
+- **LOINC distinguishes mass-based from molar-based measurements.** The codes
+  listed name the analyte; the canonical unit in `x_unit` governs. A source
+  reporting testosterone in ng/dL may legitimately carry a different LOINC code
+  than the one in the schema even though the analyte matches — do not treat a
+  code mismatch as a mapping failure.
 
 ### Longitudinal input detection
 
@@ -411,30 +521,18 @@ soften the language. This output is the product.
 
 ---
 
-## 9. LLM prompt construction
+## 9. LLM integration
 
-Give the proposer, per canonical field: name, canonical unit, type, `x_range`,
-`x_hints`, and any disambiguation note. Compact JSON, not prose.
-
-Per source column: name, dtype, null rate, n_unique, 5–10 sample values, min/max.
-
-**Require structured output.** Ask for JSON matching the mapping-file entry
-schema. Reject and retry on parse failure rather than repairing by hand.
-
-**Instruct it to prefer null over a guess.** Wrong mappings are worse than gaps
-— a gap is visible in the coverage report, a wrong mapping is invisible until it
-corrupts an analysis. The prompt should say this explicitly.
-
-**Ask for unit reasoning, not just a unit.** `mapping_rationale` should say
-*why* — "values 110-260, column 'WT', consistent with pounds" — so a reviewer
-can check the inference rather than the conclusion.
-
-**Batch by group, not all 104 fields at once.** Send the metabolic fields with
-the metabolic-looking columns. Better precision, cheaper, and easier to debug.
+The column-mapping LLM call — prompt construction, catalog generation, the
+worked input/output example, and response validation — is covered in
+`LLM_INTEGRATION.md`, not here. It's a self-contained subsystem with its own
+input and output contracts (`llm_column_profile.schema.json`,
+`llm_mapping_response.schema.json`).
 
 ---
 
-## 10. Build order (12-hour budget)
+
+## 10. Build order
 
 Parallelize; nobody waits for the spec to be final.
 
@@ -446,15 +544,40 @@ Parallelize; nobody waits for the spec to be final.
 | P0 | LLM proposer | CS/ML | Structured output, retry on parse fail |
 | P0 | Transform executor | data eng | Mapping file in, standardized table out |
 | P1 | Coverage report | bioeng | The money output |
-| P1 | Validator rules | bioeng | 20 rules in `x_validator_rules` |
+| P1 | Validator rules | bioeng | 19 rules in `x_validator_rules` |
 | P1 | NHANES source override file | bioeng | Makes the demo work |
-| P2 | Arithmetic derivations | CS/ML | bmi, FAI, HOMA-IR |
+| P2 | Computed fallbacks | CS/ML | bmi, FAI, HOMA-IR — see §4 |
 | P2 | Minimal web UI | PM/CS | Upload → review → download |
-| P3 | Clinical-logic derivations | bioeng | Only if P0–P2 are done |
+| P3 | Value-mapping pass | CS/ML | Enum codes → canonical values; see `LLM_INTEGRATION.md` |
 
-**Cut line:** if you're 3 hours out with a broken tool, ship the spec, the JSON
+### Which fields to wire first
+
+The schema is comprehensive by design — it covers what a researcher might
+plausibly have, not what any one dataset does. That means implementation
+priority is a separate question from schema membership, and it lives here rather
+than in the schema.
+
+Wire in this order:
+
+1. **identity, criterion_1, criterion_2, criterion_3, exclusions, diagnosis** —
+   the Rotterdam evidence fields. Without these the coverage report has nothing
+   to say. Note this schema stores what a source reports for each criterion; it
+   does not evaluate or diagnose (spec §7.2).
+2. **demographics, confounders, metabolic, sample_context** — needed to
+   interpret the above, and heavily populated in NHANES.
+3. **gonadotropins** — small, cheap.
+4. **fertility, mental_health** — real fields, but no demo source populates
+   them. Mapping works without special handling; skip only the validation and
+   coverage-report wiring if time is short.
+
+Nothing in this list is optional at the schema level. A field with no
+implementation still maps correctly — it just doesn't get a validator rule or a
+coverage line.
+
+**Cut line:** if the tool is broken and time is short, ship the spec, the JSON
 Schema, and a hand-done worked example. A documented open schema with a
 validator is a real contribution; a half-working ingestion app is not.
+
 
 ---
 

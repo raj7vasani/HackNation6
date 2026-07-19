@@ -5,809 +5,1834 @@
   "version": "0.1.0",
   "description": "Open canonical schema for harmonizing cross-sectional PCOS research datasets. Organized around the Rotterdam 2003 criteria. Draft; not clinically validated.",
   "type": "object",
-  "required": ["subject_id", "source_dataset"],
+  "required": [
+    "subject_id"
+  ],
   "additionalProperties": false,
-
   "$defs": {
     "missing_code": {
       "type": "string",
-      "enum": ["not_measured", "below_lod", "not_applicable", "withheld", "unknown"],
+      "enum": [
+        "not_measured",
+        "below_lod",
+        "not_applicable",
+        "withheld",
+        "unknown"
+      ],
       "description": "Typed missingness. Missing values are never blank."
     },
     "nullable_number": {
       "anyOf": [
-        { "type": "number" },
-        { "$ref": "#/$defs/missing_code" },
-        { "type": "null" }
+        {
+          "type": "number"
+        },
+        {
+          "$ref": "#/$defs/missing_code"
+        },
+        {
+          "type": "null"
+        }
       ]
     },
     "nullable_integer": {
       "anyOf": [
-        { "type": "integer" },
-        { "$ref": "#/$defs/missing_code" },
-        { "type": "null" }
+        {
+          "type": "integer"
+        },
+        {
+          "$ref": "#/$defs/missing_code"
+        },
+        {
+          "type": "null"
+        }
       ]
     },
     "nullable_boolean": {
       "anyOf": [
-        { "type": "boolean" },
-        { "$ref": "#/$defs/missing_code" },
-        { "type": "null" }
+        {
+          "type": "boolean"
+        },
+        {
+          "$ref": "#/$defs/missing_code"
+        },
+        {
+          "type": "null"
+        }
       ]
     },
     "nullable_string": {
       "anyOf": [
-        { "type": "string" },
-        { "$ref": "#/$defs/missing_code" },
-        { "type": "null" }
+        {
+          "type": "string"
+        },
+        {
+          "$ref": "#/$defs/missing_code"
+        },
+        {
+          "type": "null"
+        }
       ]
     },
     "provenance": {
       "type": "object",
-      "description": "Emitted for every mapped field.",
+      "description": "Emitted for every populated field. source_column_name is required when value_source is 'source'; transformation_applied records the formula and inputs when it is 'computed'.",
       "properties": {
+        "value_source": {
+          "type": "string",
+          "enum": [
+            "source",
+            "computed"
+          ],
+          "description": "Whether the value was mapped from a source column or computed from other canonical fields via x_fallback."
+        },
         "value_raw": {},
-        "unit_raw": { "type": ["string", "null"] },
+        "unit_raw": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
         "value_canonical": {},
-        "unit_canonical": { "type": ["string", "null"] },
-        "source_file": { "type": ["string", "null"] },
-        "source_column_name": { "type": ["string", "null"] },
-        "transformation_applied": { "type": ["string", "null"] },
-        "mapping_confidence": { "type": ["number", "null"], "minimum": 0, "maximum": 1 },
-        "mapping_rationale": { "type": ["string", "null"] },
-        "human_reviewed": { "type": "boolean", "default": false },
-        "below_lod_flag": { "type": ["boolean", "null"] }
+        "unit_canonical": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "source_file": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "source_column_name": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "transformation_applied": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "mapping_confidence": {
+          "type": [
+            "number",
+            "null"
+          ],
+          "minimum": 0,
+          "maximum": 1
+        },
+        "mapping_rationale": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "human_reviewed": {
+          "type": "boolean",
+          "default": false
+        },
+        "below_lod_flag": {
+          "type": [
+            "boolean",
+            "null"
+          ]
+        },
+        "source_dataset": {
+          "type": [
+            "string",
+            "null"
+          ],
+          "description": "Dataset the value originated from. Carried per value rather than per row so that merged multi-source datasets remain traceable."
+        }
       },
-      "required": ["source_column_name", "human_reviewed"]
+      "required": [
+        "value_source",
+        "human_reviewed"
+      ]
     }
   },
-
   "properties": {
-
     "subject_id": {
+      "x_id": 90,
       "type": "string",
-      "description": "Unique subject identifier.",
+      "description": "Unique subject identifier within source_dataset.",
       "x_group": "identity"
     },
     "age_years": {
+      "x_id": 7,
       "$ref": "#/$defs/nullable_number",
       "x_unit": "years",
+      "x_unit_ucum": "a",
       "x_group": "demographics",
-      "x_range": [0, 120],
-      "x_hints": ["age", "RIDAGEYR", "age_at_visit", "AGE"]
+      "x_range": [
+        0,
+        120
+      ],
+      "x_hints": [
+        "age",
+        "RIDAGEYR",
+        "age_at_visit",
+        "AGE"
+      ],
+      "x_loinc": "30525-0",
+      "x_loinc_display": "Age"
     },
     "race_ethnicity": {
+      "x_id": 87,
       "$ref": "#/$defs/nullable_string",
       "x_group": "demographics",
       "x_note": "Preserve source label verbatim; do not recode.",
-      "x_hints": ["race", "ethnicity", "RIDRETH1", "RIDRETH3"]
+      "x_hints": [
+        "race",
+        "ethnicity",
+        "RIDRETH1",
+        "RIDRETH3"
+      ]
     },
     "height_cm": {
+      "x_id": 54,
       "$ref": "#/$defs/nullable_number",
       "x_unit": "cm",
+      "x_unit_ucum": "cm",
       "x_group": "demographics",
-      "x_range": [100, 220],
-      "x_conversions": { "in": 2.54 },
-      "x_hints": ["height", "BMXHT", "ht_cm"]
+      "x_range": [
+        100,
+        220
+      ],
+      "x_conversions": {
+        "in": 2.54
+      },
+      "x_hints": [
+        "height",
+        "BMXHT",
+        "ht_cm"
+      ],
+      "x_loinc": "8302-2",
+      "x_loinc_display": "Body height"
     },
     "weight_kg": {
+      "x_id": 99,
       "$ref": "#/$defs/nullable_number",
       "x_unit": "kg",
+      "x_unit_ucum": "kg",
       "x_group": "demographics",
-      "x_range": [25, 300],
-      "x_conversions": { "lb": 0.4536 },
-      "x_hints": ["weight", "BMXWT", "wt_kg"]
+      "x_range": [
+        25,
+        300
+      ],
+      "x_conversions": {
+        "lb": 0.4536
+      },
+      "x_hints": [
+        "weight",
+        "BMXWT",
+        "wt_kg"
+      ],
+      "x_loinc": "29463-7",
+      "x_loinc_display": "Body weight"
     },
     "bmi": {
+      "x_id": 19,
       "$ref": "#/$defs/nullable_number",
       "x_unit": "kg/m2",
+      "x_unit_ucum": "kg/m2",
       "x_group": "demographics",
-      "x_range": [10, 80],
-      "x_derivable": "weight_kg / (height_cm/100)^2",
-      "x_hints": ["bmi", "BMXBMI", "body_mass_index"]
+      "x_range": [
+        10,
+        80
+      ],
+      "x_hints": [
+        "bmi",
+        "BMXBMI",
+        "body_mass_index"
+      ],
+      "x_loinc": "39156-5",
+      "x_loinc_display": "Body mass index (BMI) [Ratio]",
+      "x_fallback": {
+        "op": "expression",
+        "inputs": [
+          {
+            "field": "weight_kg",
+            "unit": "kg"
+          },
+          {
+            "field": "height_cm",
+            "unit": "cm"
+          }
+        ],
+        "expression": "weight_kg / ((height_cm / 100) ** 2)",
+        "output_unit": "kg/m2",
+        "guards": [
+          {
+            "field": "height_cm",
+            "condition": "gt",
+            "value": 0
+          }
+        ],
+        "source": "WHO standard definition"
+      }
     },
     "waist_circumference_cm": {
+      "x_id": 97,
       "$ref": "#/$defs/nullable_number",
       "x_unit": "cm",
+      "x_unit_ucum": "cm",
       "x_group": "demographics",
-      "x_range": [40, 200],
-      "x_conversions": { "in": 2.54 },
-      "x_hints": ["waist", "BMXWAIST"]
+      "x_range": [
+        40,
+        200
+      ],
+      "x_conversions": {
+        "in": 2.54
+      },
+      "x_hints": [
+        "waist",
+        "BMXWAIST"
+      ],
+      "x_loinc": "56086-2",
+      "x_loinc_display": "Waist Circumference at umbilicus by Tape measure",
+      "x_loinc_verified": false
     },
     "hip_circumference_cm": {
+      "x_id": 55,
       "$ref": "#/$defs/nullable_number",
       "x_unit": "cm",
+      "x_unit_ucum": "cm",
       "x_group": "demographics",
-      "x_range": [50, 200],
-      "x_conversions": { "in": 2.54 },
-      "x_hints": ["hip", "BMXHIP"]
+      "x_range": [
+        50,
+        200
+      ],
+      "x_conversions": {
+        "in": 2.54
+      },
+      "x_hints": [
+        "hip",
+        "BMXHIP"
+      ]
     },
     "waist_hip_ratio": {
+      "x_id": 98,
       "$ref": "#/$defs/nullable_number",
       "x_unit": "ratio",
+      "x_unit_ucum": "{ratio}",
       "x_group": "demographics",
-      "x_range": [0.5, 1.5],
-      "x_derivable": "waist_circumference_cm / hip_circumference_cm"
+      "x_range": [
+        0.5,
+        1.5
+      ],
+      "x_fallback": {
+        "op": "expression",
+        "inputs": [
+          {
+            "field": "waist_circumference_cm",
+            "unit": "cm"
+          },
+          {
+            "field": "hip_circumference_cm",
+            "unit": "cm"
+          }
+        ],
+        "expression": "waist_circumference_cm / hip_circumference_cm",
+        "output_unit": "{ratio}",
+        "guards": [
+          {
+            "field": "hip_circumference_cm",
+            "condition": "gt",
+            "value": 0
+          }
+        ],
+        "source": "WHO, Waist Circumference and Waist-Hip Ratio, 2008"
+      }
     },
-
     "hormonal_contraceptive_use": {
+      "x_id": 59,
       "anyOf": [
-        { "type": "string", "enum": ["current", "former", "never", "unknown"] },
-        { "$ref": "#/$defs/missing_code" },
-        { "type": "null" }
+        {
+          "type": "string",
+          "enum": [
+            "current",
+            "former",
+            "never",
+            "unknown"
+          ]
+        },
+        {
+          "$ref": "#/$defs/missing_code"
+        },
+        {
+          "type": "null"
+        }
       ],
       "x_group": "confounders",
       "x_priority": "critical",
       "x_note": "Suppresses androgens and imposes artificial cycles. Absence invalidates most androgen and cycle analysis.",
-      "x_hints": ["birth_control", "oral_contraceptive", "OC_use", "RHQ540", "contraception"]
+      "x_hints": [
+        "birth_control",
+        "oral_contraceptive",
+        "OC_use",
+        "RHQ540",
+        "contraception"
+      ]
     },
     "contraceptive_type": {
+      "x_id": 23,
       "anyOf": [
-        { "type": "string", "enum": ["combined_oral", "progestin_only_oral", "hormonal_iud", "copper_iud", "implant", "injectable", "patch", "ring", "other_hormonal", "non_hormonal", "none", "unknown"] },
-        { "$ref": "#/$defs/missing_code" },
-        { "type": "null" }
+        {
+          "type": "string",
+          "enum": [
+            "combined_oral",
+            "progestin_only_oral",
+            "hormonal_iud",
+            "copper_iud",
+            "implant",
+            "injectable",
+            "patch",
+            "ring",
+            "other_hormonal",
+            "non_hormonal",
+            "none",
+            "unknown"
+          ]
+        },
+        {
+          "$ref": "#/$defs/missing_code"
+        },
+        {
+          "type": "null"
+        }
       ],
       "x_group": "confounders",
       "x_note": "Suppression magnitude differs by type. Combined oral contraceptives raise SHBG and suppress androgens most strongly; copper IUD and non-hormonal methods do not. Preserve the source label in value_raw.",
-      "x_hints": ["contraceptive_type", "birth_control_method", "OC_type", "RHQ554", "contraception_method"]
+      "x_hints": [
+        "contraceptive_type",
+        "birth_control_method",
+        "OC_type",
+        "RHQ554",
+        "contraception_method"
+      ]
     },
     "contraceptive_washout_days": {
+      "x_id": 24,
       "$ref": "#/$defs/nullable_integer",
       "x_unit": "days",
+      "x_unit_ucum": "d",
       "x_group": "confounders"
     },
     "pregnancy_status": {
+      "x_id": 82,
       "anyOf": [
-        { "type": "string", "enum": ["pregnant", "not_pregnant", "postpartum", "unknown"] },
-        { "$ref": "#/$defs/missing_code" },
-        { "type": "null" }
+        {
+          "type": "string",
+          "enum": [
+            "pregnant",
+            "not_pregnant",
+            "postpartum",
+            "unknown"
+          ]
+        },
+        {
+          "$ref": "#/$defs/missing_code"
+        },
+        {
+          "type": "null"
+        }
       ],
       "x_group": "confounders",
       "x_note": "Invalidates most hormonal and cycle fields.",
-      "x_hints": ["pregnant", "RHQ143", "URXPREG", "RIDEXPRG"]
+      "x_hints": [
+        "pregnant",
+        "RHQ143",
+        "URXPREG",
+        "RIDEXPRG"
+      ]
     },
     "breastfeeding_flag": {
+      "x_id": 20,
       "$ref": "#/$defs/nullable_boolean",
       "x_group": "confounders",
-      "x_hints": ["breastfeeding", "RHQ200", "lactating"]
+      "x_hints": [
+        "breastfeeding",
+        "RHQ200",
+        "lactating"
+      ]
     },
     "menopausal_status": {
+      "x_id": 67,
       "anyOf": [
-        { "type": "string", "enum": ["pre", "peri", "post", "unknown"] },
-        { "$ref": "#/$defs/missing_code" },
-        { "type": "null" }
+        {
+          "type": "string",
+          "enum": [
+            "pre",
+            "peri",
+            "post",
+            "unknown"
+          ]
+        },
+        {
+          "$ref": "#/$defs/missing_code"
+        },
+        {
+          "type": "null"
+        }
       ],
       "x_group": "confounders",
-      "x_hints": ["menopause", "RHQ043", "menopausal"]
+      "x_hints": [
+        "menopause",
+        "RHQ043",
+        "menopausal"
+      ]
     },
     "age_at_last_menstrual_period": {
+      "x_id": 4,
       "$ref": "#/$defs/nullable_number",
       "x_unit": "years",
+      "x_unit_ucum": "a",
       "x_group": "confounders",
-      "x_hints": ["RHQ060", "age_last_period"]
+      "x_hints": [
+        "RHQ060",
+        "age_last_period"
+      ]
     },
     "hysterectomy_flag": {
+      "x_id": 60,
       "$ref": "#/$defs/nullable_boolean",
       "x_group": "confounders",
       "x_note": "Cycle fields become not_applicable.",
-      "x_hints": ["hysterectomy", "RHQ282", "uterus_removed"]
+      "x_hints": [
+        "hysterectomy",
+        "RHQ282",
+        "uterus_removed"
+      ]
     },
     "oophorectomy_flag": {
+      "x_id": 71,
       "$ref": "#/$defs/nullable_boolean",
       "x_group": "confounders",
       "x_note": "Bilateral removal. Androgen and morphology fields become not_applicable.",
-      "x_hints": ["oophorectomy", "RHQ305", "ovaries_removed"]
+      "x_hints": [
+        "oophorectomy",
+        "RHQ305",
+        "ovaries_removed"
+      ]
     },
     "age_at_oophorectomy": {
+      "x_id": 6,
       "$ref": "#/$defs/nullable_number",
       "x_unit": "years",
+      "x_unit_ucum": "a",
       "x_group": "confounders",
-      "x_hints": ["RHQ332"]
+      "x_hints": [
+        "RHQ332"
+      ]
     },
     "metformin_use": {
+      "x_id": 68,
       "$ref": "#/$defs/nullable_boolean",
       "x_group": "confounders",
       "x_note": "Alters metabolic panel."
     },
     "antiandrogen_use": {
+      "x_id": 13,
       "$ref": "#/$defs/nullable_boolean",
       "x_group": "confounders",
       "x_note": "e.g. spironolactone. Suppresses clinical and biochemical androgen signals."
     },
     "ovulation_induction_use": {
+      "x_id": 75,
       "$ref": "#/$defs/nullable_boolean",
       "x_group": "confounders",
       "x_note": "e.g. letrozole, clomiphene."
     },
-
     "age_at_menarche": {
+      "x_id": 5,
       "$ref": "#/$defs/nullable_number",
       "x_unit": "years",
+      "x_unit_ucum": "a",
       "x_group": "criterion_1_ovulatory",
-      "x_range": [6, 25],
-      "x_hints": ["menarche", "RHQ010", "age_first_period"]
+      "x_range": [
+        6,
+        25
+      ],
+      "x_hints": [
+        "menarche",
+        "RHQ010",
+        "age_first_period"
+      ]
     },
     "cycle_length_days_typical": {
+      "x_id": 28,
       "$ref": "#/$defs/nullable_number",
       "x_unit": "days",
+      "x_unit_ucum": "d",
       "x_group": "criterion_1_ovulatory",
-      "x_range": [15, 365],
-      "x_hints": ["cycle_length", "menstrual_cycle_days"]
+      "x_range": [
+        15,
+        365
+      ],
+      "x_hints": [
+        "cycle_length",
+        "menstrual_cycle_days"
+      ]
     },
     "cycle_length_variability_days": {
+      "x_id": 29,
       "$ref": "#/$defs/nullable_number",
       "x_unit": "days",
+      "x_unit_ucum": "d",
       "x_group": "criterion_1_ovulatory",
       "x_note": "SD or range; record which in transformation_applied."
     },
     "cycles_per_year": {
+      "x_id": 30,
       "$ref": "#/$defs/nullable_number",
       "x_unit": "count",
+      "x_unit_ucum": "{count}",
       "x_group": "criterion_1_ovulatory",
-      "x_range": [0, 24]
+      "x_range": [
+        0,
+        24
+      ]
     },
     "oligomenorrhea_flag": {
+      "x_id": 70,
       "$ref": "#/$defs/nullable_boolean",
       "x_group": "criterion_1_ovulatory",
       "x_note": "Conventionally cycles >35 days or <8 cycles/year.",
-      "x_hints": ["oligomenorrhea", "irregular_periods"]
+      "x_hints": [
+        "oligomenorrhea",
+        "irregular_periods"
+      ]
     },
     "amenorrhea_flag": {
+      "x_id": 8,
       "$ref": "#/$defs/nullable_boolean",
       "x_group": "criterion_1_ovulatory",
       "x_note": "No menses >=3 months (some instruments use >=12).",
-      "x_hints": ["amenorrhea", "RHQ031", "no_period"]
+      "x_hints": [
+        "amenorrhea",
+        "RHQ031",
+        "no_period"
+      ]
     },
     "irregular_cycles_self_report": {
+      "x_id": 63,
       "$ref": "#/$defs/nullable_boolean",
       "x_group": "criterion_1_ovulatory"
     },
     "progesterone_luteal": {
+      "x_id": 83,
       "$ref": "#/$defs/nullable_number",
       "x_unit": "nmol/L",
+      "x_unit_ucum": "nmol/L",
       "x_group": "criterion_1_ovulatory",
-      "x_conversions": { "ng/mL": 3.18 },
+      "x_conversions": {
+        "ng/mL": 3.18
+      },
       "x_note": "Biochemical confirmation that ovulation occurred.",
-      "x_hints": ["progesterone", "P4", "LBXPRG"]
-    },
-    "ovulatory_dysfunction_derived": {
-      "$ref": "#/$defs/nullable_boolean",
-      "x_group": "criterion_1_ovulatory",
-      "x_derived": true
+      "x_hints": [
+        "progesterone",
+        "P4",
+        "LBXPRG"
+      ],
+      "x_loinc": "2839-9",
+      "x_loinc_display": "Progesterone [Mass/Vol] in Serum or Plasma"
     },
     "ovulatory_evidence_level": {
+      "x_id": 76,
       "anyOf": [
-        { "type": "string", "enum": ["measured", "clinician", "self_report", "unknown"] },
-        { "type": "null" }
+        {
+          "type": "string",
+          "enum": [
+            "measured",
+            "clinician",
+            "self_report",
+            "unknown"
+          ]
+        },
+        {
+          "type": "null"
+        }
       ],
       "x_group": "criterion_1_ovulatory"
     },
-
     "total_testosterone": {
+      "x_id": 93,
       "$ref": "#/$defs/nullable_number",
       "x_unit": "nmol/L",
+      "x_unit_ucum": "nmol/L",
       "x_group": "criterion_2_hyperandrogenism",
-      "x_range": [0, 20],
-      "x_conversions": { "ng/dL": 0.0347, "ng/mL": 3.47 },
+      "x_range": [
+        0,
+        20
+      ],
+      "x_conversions": {
+        "ng/dL": 0.0347,
+        "ng/mL": 3.47
+      },
       "x_note": "Unit disambiguation: values ~0.5-3 suggest nmol/L; ~15-90 suggest ng/dL.",
-      "x_hints": ["testosterone", "LBXTST", "total_T", "TT"]
+      "x_hints": [
+        "testosterone",
+        "LBXTST",
+        "total_T",
+        "TT"
+      ],
+      "x_loinc": "2986-8",
+      "x_loinc_display": "Testosterone [Mass/Vol] in Serum or Plasma"
     },
     "free_testosterone": {
+      "x_id": 49,
       "$ref": "#/$defs/nullable_number",
       "x_unit": "pmol/L",
+      "x_unit_ucum": "pmol/L",
       "x_group": "criterion_2_hyperandrogenism",
-      "x_conversions": { "pg/mL": 3.47 },
-      "x_hints": ["free_testosterone", "free_T", "FT"]
+      "x_conversions": {
+        "pg/mL": 3.47
+      },
+      "x_hints": [
+        "free_testosterone",
+        "free_T",
+        "FT"
+      ],
+      "x_loinc": "2991-8",
+      "x_loinc_display": "Testosterone.free [Mass/Vol] in Serum or Plasma"
     },
     "shbg": {
+      "x_id": 89,
       "$ref": "#/$defs/nullable_number",
       "x_unit": "nmol/L",
+      "x_unit_ucum": "nmol/L",
       "x_group": "criterion_2_hyperandrogenism",
-      "x_range": [0, 300],
-      "x_hints": ["shbg", "LBXSHBG", "sex_hormone_binding_globulin"]
+      "x_range": [
+        0,
+        300
+      ],
+      "x_hints": [
+        "shbg",
+        "LBXSHBG",
+        "sex_hormone_binding_globulin"
+      ],
+      "x_loinc": "13967-5",
+      "x_loinc_display": "Sex hormone binding globulin [Moles/Vol] in Serum or Plasma"
     },
     "free_androgen_index": {
+      "x_id": 47,
       "$ref": "#/$defs/nullable_number",
       "x_unit": "ratio",
+      "x_unit_ucum": "{ratio}",
       "x_group": "criterion_2_hyperandrogenism",
-      "x_derivable": "100 * total_testosterone / shbg (both nmol/L)",
-      "x_hints": ["FAI", "free_androgen_index"]
+      "x_hints": [
+        "FAI",
+        "free_androgen_index"
+      ],
+      "x_fallback": {
+        "op": "expression",
+        "inputs": [
+          {
+            "field": "total_testosterone",
+            "unit": "nmol/L"
+          },
+          {
+            "field": "shbg",
+            "unit": "nmol/L"
+          }
+        ],
+        "expression": "100 * total_testosterone / shbg",
+        "output_unit": "{ratio}",
+        "guards": [
+          {
+            "field": "shbg",
+            "condition": "gt",
+            "value": 0
+          }
+        ],
+        "warnings": [
+          {
+            "field": "contraceptive_type",
+            "condition": "eq",
+            "value": "combined_oral",
+            "message": "SHBG raised by combined oral contraceptives; FAI is uninterpretable"
+          }
+        ],
+        "source": "Standard endocrine calculation"
+      }
     },
     "dheas": {
+      "x_id": 33,
       "$ref": "#/$defs/nullable_number",
       "x_unit": "umol/L",
+      "x_unit_ucum": "umol/L",
       "x_group": "criterion_2_hyperandrogenism",
-      "x_conversions": { "ug/dL": 0.02714 },
-      "x_hints": ["dheas", "DHEA-S", "dehydroepiandrosterone_sulfate"]
+      "x_conversions": {
+        "ug/dL": 0.02714
+      },
+      "x_hints": [
+        "dheas",
+        "DHEA-S",
+        "dehydroepiandrosterone_sulfate"
+      ],
+      "x_loinc": "2191-5",
+      "x_loinc_display": "Dehydroepiandrosterone sulfate [Mass/Vol] in Serum or Plasma"
     },
     "androstenedione": {
+      "x_id": 12,
       "$ref": "#/$defs/nullable_number",
       "x_unit": "nmol/L",
+      "x_unit_ucum": "nmol/L",
       "x_group": "criterion_2_hyperandrogenism",
-      "x_conversions": { "ng/dL": 0.0349 },
-      "x_hints": ["androstenedione", "A4"]
+      "x_conversions": {
+        "ng/dL": 0.0349
+      },
+      "x_hints": [
+        "androstenedione",
+        "A4"
+      ],
+      "x_loinc": "1854-9",
+      "x_loinc_display": "Androstenedione [Mass/Vol] in Serum or Plasma",
+      "x_loinc_verified": false
     },
     "androgen_assay_method": {
+      "x_id": 10,
       "anyOf": [
-        { "type": "string", "enum": ["immunoassay", "lcmsms", "unknown"] },
-        { "$ref": "#/$defs/missing_code" },
-        { "type": "null" }
+        {
+          "type": "string",
+          "enum": [
+            "immunoassay",
+            "lcmsms",
+            "unknown"
+          ]
+        },
+        {
+          "$ref": "#/$defs/missing_code"
+        },
+        {
+          "type": "null"
+        }
       ],
       "x_group": "criterion_2_hyperandrogenism",
       "x_priority": "critical",
       "x_note": "Immunoassay and LC-MS/MS are not comparable at female concentrations. Pooling without this field produces confidently wrong results.",
-      "x_hints": ["assay", "method", "platform"]
+      "x_hints": [
+        "assay",
+        "method",
+        "platform"
+      ]
     },
     "sample_time_of_day": {
+      "x_id": 88,
       "anyOf": [
-        { "type": "string", "enum": ["morning", "afternoon", "unknown"] },
-        { "type": "null" }
+        {
+          "type": "string",
+          "enum": [
+            "morning",
+            "afternoon",
+            "unknown"
+          ]
+        },
+        {
+          "type": "null"
+        }
       ],
       "x_group": "criterion_2_hyperandrogenism",
       "x_note": "Androgens show diurnal variation.",
-      "x_hints": ["RIDEXMON", "session", "time_of_day", "RIAGENDR_session"]
+      "x_hints": [
+        "RIDEXMON",
+        "session",
+        "time_of_day",
+        "RIAGENDR_session"
+      ]
     },
     "hirsutism_score_mfg": {
+      "x_id": 57,
       "$ref": "#/$defs/nullable_integer",
       "x_unit": "score",
+      "x_unit_ucum": "{score}",
       "x_group": "criterion_2_hyperandrogenism",
-      "x_range": [0, 36],
+      "x_range": [
+        0,
+        36
+      ],
       "x_note": "Modified Ferriman-Gallwey.",
-      "x_hints": ["ferriman", "mFG", "hirsutism_score"]
+      "x_hints": [
+        "ferriman",
+        "mFG",
+        "hirsutism_score"
+      ]
     },
     "hirsutism_flag": {
+      "x_id": 56,
       "$ref": "#/$defs/nullable_boolean",
       "x_group": "criterion_2_hyperandrogenism",
       "x_note": "Threshold varies by ethnicity; record applied threshold in transformation_applied."
     },
     "acne_flag": {
+      "x_id": 3,
       "$ref": "#/$defs/nullable_boolean",
       "x_group": "criterion_2_hyperandrogenism"
     },
     "androgenic_alopecia_flag": {
+      "x_id": 11,
       "$ref": "#/$defs/nullable_boolean",
       "x_group": "criterion_2_hyperandrogenism",
-      "x_hints": ["alopecia", "hair_loss"]
+      "x_hints": [
+        "alopecia",
+        "hair_loss"
+      ]
     },
     "clinical_androgen_assessment": {
+      "x_id": 21,
       "anyOf": [
-        { "type": "string", "enum": ["clinician", "self_report", "unknown"] },
-        { "type": "null" }
+        {
+          "type": "string",
+          "enum": [
+            "clinician",
+            "self_report",
+            "unknown"
+          ]
+        },
+        {
+          "type": "null"
+        }
       ],
       "x_group": "criterion_2_hyperandrogenism"
     },
-    "hyperandrogenism_derived": {
-      "$ref": "#/$defs/nullable_boolean",
-      "x_group": "criterion_2_hyperandrogenism",
-      "x_derived": true
-    },
-    "hyperandrogenism_basis": {
-      "anyOf": [
-        { "type": "string", "enum": ["biochemical", "clinical", "both", "none"] },
-        { "type": "null" }
-      ],
-      "x_group": "criterion_2_hyperandrogenism"
-    },
-
     "antral_follicle_count_left": {
+      "x_id": 14,
       "$ref": "#/$defs/nullable_integer",
       "x_unit": "count",
+      "x_unit_ucum": "{count}",
       "x_group": "criterion_3_pcom",
-      "x_range": [0, 100],
-      "x_hints": ["AFC_left", "follicle_count_left"]
+      "x_range": [
+        0,
+        100
+      ],
+      "x_hints": [
+        "AFC_left",
+        "follicle_count_left"
+      ]
     },
     "antral_follicle_count_right": {
+      "x_id": 16,
       "$ref": "#/$defs/nullable_integer",
       "x_unit": "count",
+      "x_unit_ucum": "{count}",
       "x_group": "criterion_3_pcom",
-      "x_range": [0, 100],
-      "x_hints": ["AFC_right", "follicle_count_right"]
+      "x_range": [
+        0,
+        100
+      ],
+      "x_hints": [
+        "AFC_right",
+        "follicle_count_right"
+      ]
     },
     "antral_follicle_count_max": {
+      "x_id": 15,
       "$ref": "#/$defs/nullable_integer",
       "x_unit": "count",
+      "x_unit_ucum": "{count}",
       "x_group": "criterion_3_pcom",
       "x_note": "Per-ovary maximum. This is the criterion value.",
-      "x_derivable": "max(antral_follicle_count_left, antral_follicle_count_right)"
+      "x_fallback": {
+        "op": "max",
+        "inputs": [
+          {
+            "field": "antral_follicle_count_left",
+            "unit": "{count}"
+          },
+          {
+            "field": "antral_follicle_count_right",
+            "unit": "{count}"
+          }
+        ],
+        "output_unit": "{count}",
+        "source": "Field selection; the Rotterdam criterion is stated per ovary"
+      }
     },
     "ovarian_volume_left_ml": {
+      "x_id": 72,
       "$ref": "#/$defs/nullable_number",
       "x_unit": "mL",
+      "x_unit_ucum": "mL",
       "x_group": "criterion_3_pcom",
-      "x_range": [0, 100]
+      "x_range": [
+        0,
+        100
+      ]
     },
     "ovarian_volume_right_ml": {
+      "x_id": 74,
       "$ref": "#/$defs/nullable_number",
       "x_unit": "mL",
+      "x_unit_ucum": "mL",
       "x_group": "criterion_3_pcom",
-      "x_range": [0, 100]
+      "x_range": [
+        0,
+        100
+      ]
     },
     "ovarian_volume_max_ml": {
+      "x_id": 73,
       "$ref": "#/$defs/nullable_number",
       "x_unit": "mL",
+      "x_unit_ucum": "mL",
       "x_group": "criterion_3_pcom",
       "x_note": "Criterion conventionally >10 mL.",
-      "x_derivable": "max(ovarian_volume_left_ml, ovarian_volume_right_ml)"
+      "x_fallback": {
+        "op": "max",
+        "inputs": [
+          {
+            "field": "ovarian_volume_left_ml",
+            "unit": "mL"
+          },
+          {
+            "field": "ovarian_volume_right_ml",
+            "unit": "mL"
+          }
+        ],
+        "output_unit": "mL",
+        "source": "Field selection; the Rotterdam criterion is stated per ovary"
+      }
     },
     "ultrasound_route": {
+      "x_id": 96,
       "anyOf": [
-        { "type": "string", "enum": ["transvaginal", "transabdominal", "unknown"] },
-        { "type": "null" }
+        {
+          "type": "string",
+          "enum": [
+            "transvaginal",
+            "transabdominal",
+            "unknown"
+          ]
+        },
+        {
+          "type": "null"
+        }
       ],
       "x_group": "criterion_3_pcom",
       "x_note": "Resolution differs materially; affects valid follicle-count threshold."
     },
     "amh": {
+      "x_id": 9,
       "$ref": "#/$defs/nullable_number",
       "x_unit": "pmol/L",
+      "x_unit_ucum": "pmol/L",
       "x_group": "criterion_3_pcom",
-      "x_conversions": { "ng/mL": 7.14 },
+      "x_conversions": {
+        "ng/mL": 7.14
+      },
       "x_note": "May substitute for ultrasound in adults per 2023 International Guideline.",
-      "x_hints": ["AMH", "anti_mullerian_hormone"]
-    },
-    "pcom_flag": {
-      "$ref": "#/$defs/nullable_boolean",
-      "x_group": "criterion_3_pcom",
-      "x_note": "Never set without pcom_threshold_applied."
+      "x_hints": [
+        "AMH",
+        "anti_mullerian_hormone"
+      ],
+      "x_loinc": "38476-0",
+      "x_loinc_display": "Mullerian inhibiting substance [Mass/Vol] in Serum or Plasma"
     },
     "pcom_threshold_applied": {
+      "x_id": 79,
       "$ref": "#/$defs/nullable_string",
       "x_group": "criterion_3_pcom",
       "x_priority": "critical",
       "x_note": "e.g. 'AFC>=12', 'AFC>=20', 'volume>10ml'. Threshold moved from >=12 to >=20 as ultrasound resolution improved; a bare boolean is not comparable across eras."
     },
     "pcom_basis": {
+      "x_id": 78,
       "anyOf": [
-        { "type": "string", "enum": ["ultrasound", "amh", "unknown"] },
-        { "type": "null" }
+        {
+          "type": "string",
+          "enum": [
+            "ultrasound",
+            "amh",
+            "unknown"
+          ]
+        },
+        {
+          "type": "null"
+        }
       ],
       "x_group": "criterion_3_pcom"
     },
-
     "lh": {
+      "x_id": 65,
       "$ref": "#/$defs/nullable_number",
       "x_unit": "IU/L",
+      "x_unit_ucum": "[IU]/L",
       "x_group": "gonadotropins",
-      "x_hints": ["LH", "luteinizing_hormone"]
+      "x_hints": [
+        "LH",
+        "luteinizing_hormone"
+      ],
+      "x_loinc": "10501-5",
+      "x_loinc_display": "Luteinizing hormone [Units/Vol] in Serum or Plasma"
     },
     "fsh": {
+      "x_id": 50,
       "$ref": "#/$defs/nullable_number",
       "x_unit": "IU/L",
+      "x_unit_ucum": "[IU]/L",
       "x_group": "gonadotropins",
-      "x_hints": ["FSH", "follicle_stimulating_hormone"]
+      "x_hints": [
+        "FSH",
+        "follicle_stimulating_hormone"
+      ],
+      "x_loinc": "15067-2",
+      "x_loinc_display": "Follitropin [Units/Vol] in Serum or Plasma"
     },
     "lh_fsh_ratio": {
+      "x_id": 66,
       "$ref": "#/$defs/nullable_number",
       "x_unit": "ratio",
+      "x_unit_ucum": "{ratio}",
       "x_group": "gonadotropins",
-      "x_derivable": "lh / fsh",
-      "x_note": "Historically used; no longer a diagnostic criterion."
+      "x_note": "Historically used; no longer a diagnostic criterion.",
+      "x_fallback": {
+        "op": "expression",
+        "inputs": [
+          {
+            "field": "lh",
+            "unit": "[IU]/L"
+          },
+          {
+            "field": "fsh",
+            "unit": "[IU]/L"
+          }
+        ],
+        "expression": "lh / fsh",
+        "output_unit": "{ratio}",
+        "guards": [
+          {
+            "field": "fsh",
+            "condition": "gt",
+            "value": 0
+          }
+        ],
+        "source": "Plain ratio"
+      }
     },
     "estradiol": {
+      "x_id": 38,
       "$ref": "#/$defs/nullable_number",
       "x_unit": "pmol/L",
+      "x_unit_ucum": "pmol/L",
       "x_group": "gonadotropins",
-      "x_conversions": { "pg/mL": 3.671 },
-      "x_hints": ["estradiol", "E2", "LBXEST"]
+      "x_conversions": {
+        "pg/mL": 3.671
+      },
+      "x_hints": [
+        "estradiol",
+        "E2",
+        "LBXEST"
+      ],
+      "x_loinc": "2243-4",
+      "x_loinc_display": "Estradiol [Mass/Vol] in Serum or Plasma"
     },
-
     "tsh": {
+      "x_id": 95,
       "$ref": "#/$defs/nullable_number",
       "x_unit": "mIU/L",
+      "x_unit_ucum": "m[IU]/L",
       "x_group": "exclusions",
-      "x_note": "Thyroid dysfunction — an exclusion for PCOS.",
-      "x_hints": ["TSH", "thyroid_stimulating_hormone", "LBXTSH"]
+      "x_note": "Thyroid dysfunction \u2014 an exclusion for PCOS.",
+      "x_hints": [
+        "TSH",
+        "thyroid_stimulating_hormone",
+        "LBXTSH"
+      ],
+      "x_loinc": "3016-3",
+      "x_loinc_display": "Thyrotropin [Units/Vol] in Serum or Plasma"
     },
     "free_t4": {
+      "x_id": 48,
       "$ref": "#/$defs/nullable_number",
       "x_unit": "pmol/L",
+      "x_unit_ucum": "pmol/L",
       "x_group": "exclusions",
-      "x_hints": ["free_T4", "FT4", "LBXT4F"]
+      "x_hints": [
+        "free_T4",
+        "FT4",
+        "LBXT4F"
+      ],
+      "x_loinc": "3024-7",
+      "x_loinc_display": "Thyroxine (T4) free [Mass/Vol] in Serum or Plasma",
+      "x_loinc_verified": false
     },
     "prolactin": {
+      "x_id": 84,
       "$ref": "#/$defs/nullable_number",
       "x_unit": "mIU/L",
+      "x_unit_ucum": "m[IU]/L",
       "x_group": "exclusions",
-      "x_conversions": { "ng/mL": 21.2 },
-      "x_note": "Hyperprolactinemia — an exclusion for PCOS.",
-      "x_hints": ["prolactin", "PRL"]
+      "x_conversions": {
+        "ng/mL": 21.2
+      },
+      "x_note": "Hyperprolactinemia \u2014 an exclusion for PCOS.",
+      "x_hints": [
+        "prolactin",
+        "PRL"
+      ],
+      "x_loinc": "2842-3",
+      "x_loinc_display": "Prolactin [Mass/Vol] in Serum or Plasma"
     },
     "17_hydroxyprogesterone": {
+      "x_id": 1,
       "$ref": "#/$defs/nullable_number",
       "x_unit": "nmol/L",
+      "x_unit_ucum": "nmol/L",
       "x_group": "exclusions",
-      "x_conversions": { "ng/dL": 0.0303 },
-      "x_note": "Non-classic congenital adrenal hyperplasia — an exclusion for PCOS.",
-      "x_hints": ["17-OHP", "17_OH_progesterone", "17OHP"]
+      "x_conversions": {
+        "ng/dL": 0.0303
+      },
+      "x_note": "Non-classic congenital adrenal hyperplasia \u2014 an exclusion for PCOS.",
+      "x_hints": [
+        "17-OHP",
+        "17_OH_progesterone",
+        "17OHP"
+      ],
+      "x_loinc": "1668-3",
+      "x_loinc_display": "17-Hydroxyprogesterone [Mass/Vol] in Serum or Plasma"
     },
     "cortisol": {
+      "x_id": 25,
       "$ref": "#/$defs/nullable_number",
       "x_unit": "nmol/L",
+      "x_unit_ucum": "nmol/L",
       "x_group": "exclusions",
-      "x_conversions": { "ug/dL": 27.59 },
+      "x_conversions": {
+        "ug/dL": 27.59
+      },
       "x_note": "Cushing's syndrome screening.",
-      "x_hints": ["cortisol", "LBXCRS"]
+      "x_hints": [
+        "cortisol",
+        "LBXCRS"
+      ],
+      "x_loinc": "2143-6",
+      "x_loinc_display": "Cortisol [Mass/Vol] in Serum or Plasma"
     },
     "exclusions_assessed_flag": {
+      "x_id": 40,
       "$ref": "#/$defs/nullable_boolean",
       "x_group": "exclusions",
       "x_priority": "critical",
       "x_note": "Without this, a positive PCOS label cannot be distinguished from an unworked-up PCOS-like presentation."
     },
     "exclusion_condition_present": {
+      "x_id": 39,
       "$ref": "#/$defs/nullable_string",
       "x_group": "exclusions"
     },
-
     "fasting_glucose": {
+      "x_id": 43,
       "$ref": "#/$defs/nullable_number",
       "x_unit": "mmol/L",
+      "x_unit_ucum": "mmol/L",
       "x_group": "metabolic",
-      "x_range": [1, 40],
-      "x_conversions": { "mg/dL": 0.0555 },
+      "x_range": [
+        1,
+        40
+      ],
+      "x_conversions": {
+        "mg/dL": 0.0555
+      },
       "x_note": "Unit disambiguation: values ~4-7 suggest mmol/L; ~70-130 suggest mg/dL.",
-      "x_hints": ["glucose", "LBXGLU", "fasting_glucose", "FPG"]
+      "x_hints": [
+        "glucose",
+        "LBXGLU",
+        "fasting_glucose",
+        "FPG"
+      ],
+      "x_loinc": "1558-6",
+      "x_loinc_display": "Fasting glucose [Mass/Vol] in Serum or Plasma"
     },
     "fasting_insulin": {
+      "x_id": 44,
       "$ref": "#/$defs/nullable_number",
       "x_unit": "pmol/L",
+      "x_unit_ucum": "pmol/L",
       "x_group": "metabolic",
-      "x_conversions": { "uIU/mL": 6.945, "mIU/L": 6.945 },
-      "x_hints": ["insulin", "LBXIN", "fasting_insulin"]
+      "x_conversions": {
+        "uIU/mL": 6.945,
+        "mIU/L": 6.945
+      },
+      "x_hints": [
+        "insulin",
+        "LBXIN",
+        "fasting_insulin"
+      ],
+      "x_loinc": "20448-7",
+      "x_loinc_display": "Insulin [Units/Vol] in Serum or Plasma --fasting"
     },
     "homa_ir": {
+      "x_id": 58,
       "$ref": "#/$defs/nullable_number",
       "x_unit": "ratio",
+      "x_unit_ucum": "{ratio}",
       "x_group": "metabolic",
-      "x_derivable": "fasting_glucose(mmol/L) * fasting_insulin(uIU/mL) / 22.5",
-      "x_hints": ["HOMA", "HOMA-IR", "insulin_resistance"]
+      "x_hints": [
+        "HOMA",
+        "HOMA-IR",
+        "insulin_resistance"
+      ],
+      "x_fallback": {
+        "op": "expression",
+        "inputs": [
+          {
+            "field": "fasting_glucose",
+            "unit": "mmol/L"
+          },
+          {
+            "field": "fasting_insulin",
+            "unit": "u[IU]/mL"
+          }
+        ],
+        "expression": "fasting_glucose * fasting_insulin / 22.5",
+        "output_unit": "{ratio}",
+        "guards": [
+          {
+            "field": "fasting_status",
+            "condition": "eq",
+            "value": "fasting"
+          }
+        ],
+        "source": "Matthews DR et al., Diabetologia 1985;28:412-419"
+      }
     },
     "ogtt_2hr_glucose": {
+      "x_id": 69,
       "$ref": "#/$defs/nullable_number",
       "x_unit": "mmol/L",
+      "x_unit_ucum": "mmol/L",
       "x_group": "metabolic",
-      "x_conversions": { "mg/dL": 0.0555 },
-      "x_hints": ["OGTT", "LBXGLT", "2hr_glucose"]
+      "x_conversions": {
+        "mg/dL": 0.0555
+      },
+      "x_hints": [
+        "OGTT",
+        "LBXGLT",
+        "2hr_glucose"
+      ],
+      "x_loinc": "1518-0",
+      "x_loinc_display": "Glucose [Mass/Vol] in Serum or Plasma --2 hours post dose glucose",
+      "x_loinc_verified": false
     },
     "hba1c_percent": {
+      "x_id": 52,
       "$ref": "#/$defs/nullable_number",
       "x_unit": "% (NGSP)",
+      "x_unit_ucum": "%{NGSP}",
       "x_group": "metabolic",
-      "x_range": [3, 20],
-      "x_conversions": { "mmol/mol (IFCC)": "NGSP% = (IFCC * 0.0915) + 2.15" },
-      "x_hints": ["hba1c", "LBXGH", "glycohemoglobin", "A1c"]
+      "x_range": [
+        3,
+        20
+      ],
+      "x_conversions": {
+        "mmol/mol (IFCC)": "NGSP% = (IFCC * 0.0915) + 2.15"
+      },
+      "x_hints": [
+        "hba1c",
+        "LBXGH",
+        "glycohemoglobin",
+        "A1c"
+      ],
+      "x_loinc": "4548-4",
+      "x_loinc_display": "Hemoglobin A1c/Hemoglobin.total in Blood"
     },
     "total_cholesterol": {
+      "x_id": 92,
       "$ref": "#/$defs/nullable_number",
       "x_unit": "mmol/L",
+      "x_unit_ucum": "mmol/L",
       "x_group": "metabolic",
-      "x_conversions": { "mg/dL": 0.0259 },
-      "x_hints": ["total_cholesterol", "LBXTC", "TC"]
+      "x_conversions": {
+        "mg/dL": 0.0259
+      },
+      "x_hints": [
+        "total_cholesterol",
+        "LBXTC",
+        "TC"
+      ],
+      "x_loinc": "2093-3",
+      "x_loinc_display": "Cholesterol [Mass/Vol] in Serum or Plasma"
     },
     "hdl_cholesterol": {
+      "x_id": 53,
       "$ref": "#/$defs/nullable_number",
       "x_unit": "mmol/L",
+      "x_unit_ucum": "mmol/L",
       "x_group": "metabolic",
-      "x_conversions": { "mg/dL": 0.0259 },
-      "x_hints": ["HDL", "LBDHDD"]
+      "x_conversions": {
+        "mg/dL": 0.0259
+      },
+      "x_hints": [
+        "HDL",
+        "LBDHDD"
+      ],
+      "x_loinc": "2085-9",
+      "x_loinc_display": "Cholesterol in HDL [Mass/Vol] in Serum or Plasma"
     },
     "ldl_cholesterol": {
+      "x_id": 64,
       "$ref": "#/$defs/nullable_number",
       "x_unit": "mmol/L",
+      "x_unit_ucum": "mmol/L",
       "x_group": "metabolic",
-      "x_conversions": { "mg/dL": 0.0259 },
-      "x_hints": ["LDL", "LBDLDL"]
+      "x_conversions": {
+        "mg/dL": 0.0259
+      },
+      "x_hints": [
+        "LDL",
+        "LBDLDL"
+      ],
+      "x_loinc": "13457-7",
+      "x_loinc_display": "Cholesterol in LDL [Mass/Vol] in Serum or Plasma by calculation"
     },
     "triglycerides": {
+      "x_id": 94,
       "$ref": "#/$defs/nullable_number",
       "x_unit": "mmol/L",
+      "x_unit_ucum": "mmol/L",
       "x_group": "metabolic",
-      "x_conversions": { "mg/dL": 0.0113 },
-      "x_hints": ["triglycerides", "LBXTR", "TG"]
+      "x_conversions": {
+        "mg/dL": 0.0113
+      },
+      "x_hints": [
+        "triglycerides",
+        "LBXTR",
+        "TG"
+      ],
+      "x_loinc": "2571-8",
+      "x_loinc_display": "Triglyceride [Mass/Vol] in Serum or Plasma"
     },
     "systolic_bp": {
+      "x_id": 91,
       "$ref": "#/$defs/nullable_integer",
       "x_unit": "mmHg",
+      "x_unit_ucum": "mm[Hg]",
       "x_group": "metabolic",
-      "x_range": [50, 300],
-      "x_hints": ["systolic", "BPXSY1", "SBP"]
+      "x_range": [
+        50,
+        300
+      ],
+      "x_hints": [
+        "systolic",
+        "BPXSY1",
+        "SBP"
+      ],
+      "x_loinc": "8480-6",
+      "x_loinc_display": "Systolic blood pressure"
     },
     "diastolic_bp": {
+      "x_id": 37,
       "$ref": "#/$defs/nullable_integer",
       "x_unit": "mmHg",
+      "x_unit_ucum": "mm[Hg]",
       "x_group": "metabolic",
-      "x_range": [20, 200],
-      "x_hints": ["diastolic", "BPXDI1", "DBP"]
+      "x_range": [
+        20,
+        200
+      ],
+      "x_hints": [
+        "diastolic",
+        "BPXDI1",
+        "DBP"
+      ],
+      "x_loinc": "8462-4",
+      "x_loinc_display": "Diastolic blood pressure"
     },
     "acanthosis_nigricans_flag": {
+      "x_id": 2,
       "$ref": "#/$defs/nullable_boolean",
       "x_group": "metabolic"
     },
-
     "gravidity": {
+      "x_id": 51,
       "$ref": "#/$defs/nullable_integer",
       "x_unit": "count",
+      "x_unit_ucum": "{count}",
       "x_group": "fertility",
-      "x_range": [0, 30],
-      "x_hints": ["gravidity", "RHQ131", "pregnancies"]
+      "x_range": [
+        0,
+        30
+      ],
+      "x_hints": [
+        "gravidity",
+        "RHQ131",
+        "pregnancies"
+      ]
     },
     "parity": {
+      "x_id": 77,
       "$ref": "#/$defs/nullable_integer",
       "x_unit": "count",
+      "x_unit_ucum": "{count}",
       "x_group": "fertility",
-      "x_range": [0, 30],
-      "x_hints": ["parity", "RHQ167", "deliveries", "births"]
+      "x_range": [
+        0,
+        30
+      ],
+      "x_hints": [
+        "parity",
+        "RHQ167",
+        "deliveries",
+        "births"
+      ]
     },
     "infertility_history_flag": {
+      "x_id": 62,
       "$ref": "#/$defs/nullable_boolean",
       "x_group": "fertility"
     },
     "infertility_duration_months": {
+      "x_id": 61,
       "$ref": "#/$defs/nullable_integer",
       "x_unit": "months",
+      "x_unit_ucum": "mo",
       "x_group": "fertility"
     },
     "fertility_treatment_use": {
+      "x_id": 46,
       "$ref": "#/$defs/nullable_boolean",
       "x_group": "fertility"
     },
     "family_history_pcos": {
+      "x_id": 41,
       "$ref": "#/$defs/nullable_boolean",
       "x_group": "fertility"
     },
     "family_history_t2d": {
+      "x_id": 42,
       "$ref": "#/$defs/nullable_boolean",
       "x_group": "fertility"
     },
-
     "depression_screen_score": {
+      "x_id": 32,
       "$ref": "#/$defs/nullable_number",
       "x_unit": "score",
+      "x_unit_ucum": "{score}",
       "x_group": "mental_health",
       "x_note": "Raw instrument score. Scales differ in range and direction; not comparable across instruments.",
-      "x_hints": ["PHQ9", "DPQ", "depression_score", "CESD", "BDI"]
+      "x_hints": [
+        "PHQ9",
+        "DPQ",
+        "depression_score",
+        "CESD",
+        "BDI"
+      ]
     },
     "depression_instrument": {
+      "x_id": 31,
       "anyOf": [
-        { "type": "string", "enum": ["PHQ-9", "PHQ-2", "CES-D", "BDI-II", "HADS-D", "EPDS", "other", "unknown"] },
-        { "$ref": "#/$defs/missing_code" },
-        { "type": "null" }
+        {
+          "type": "string",
+          "enum": [
+            "PHQ-9",
+            "PHQ-2",
+            "CES-D",
+            "BDI-II",
+            "HADS-D",
+            "EPDS",
+            "other",
+            "unknown"
+          ]
+        },
+        {
+          "$ref": "#/$defs/missing_code"
+        },
+        {
+          "type": "null"
+        }
       ],
       "x_group": "mental_health",
       "x_note": "Required if depression_screen_score present. Use 'other' for unlisted instruments and preserve the verbatim name in value_raw."
     },
     "anxiety_screen_score": {
+      "x_id": 18,
       "$ref": "#/$defs/nullable_number",
       "x_unit": "score",
+      "x_unit_ucum": "{score}",
       "x_group": "mental_health",
       "x_note": "Raw instrument score.",
-      "x_hints": ["GAD7", "anxiety_score", "STAI", "BAI"]
+      "x_hints": [
+        "GAD7",
+        "anxiety_score",
+        "STAI",
+        "BAI"
+      ]
     },
     "anxiety_instrument": {
+      "x_id": 17,
       "anyOf": [
-        { "type": "string", "enum": ["GAD-7", "GAD-2", "STAI", "HADS-A", "BAI", "other", "unknown"] },
-        { "$ref": "#/$defs/missing_code" },
-        { "type": "null" }
+        {
+          "type": "string",
+          "enum": [
+            "GAD-7",
+            "GAD-2",
+            "STAI",
+            "HADS-A",
+            "BAI",
+            "other",
+            "unknown"
+          ]
+        },
+        {
+          "$ref": "#/$defs/missing_code"
+        },
+        {
+          "type": "null"
+        }
       ],
       "x_group": "mental_health",
       "x_note": "Required if anxiety_screen_score present. Use 'other' for unlisted instruments and preserve the verbatim name in value_raw."
     },
     "quality_of_life_score": {
+      "x_id": 86,
       "$ref": "#/$defs/nullable_number",
       "x_unit": "score",
+      "x_unit_ucum": "{score}",
       "x_group": "mental_health",
       "x_note": "Raw instrument score.",
-      "x_hints": ["PCOSQ", "SF36", "SF12", "quality_of_life", "WHOQOL", "EQ5D"]
+      "x_hints": [
+        "PCOSQ",
+        "SF36",
+        "SF12",
+        "quality_of_life",
+        "WHOQOL",
+        "EQ5D"
+      ]
     },
     "quality_of_life_instrument": {
+      "x_id": 85,
       "anyOf": [
-        { "type": "string", "enum": ["PCOSQ", "PCOSQ-50", "MPCOSQ", "SF-36", "SF-12", "WHOQOL-BREF", "EQ-5D", "other", "unknown"] },
-        { "$ref": "#/$defs/missing_code" },
-        { "type": "null" }
+        {
+          "type": "string",
+          "enum": [
+            "PCOSQ",
+            "PCOSQ-50",
+            "MPCOSQ",
+            "SF-36",
+            "SF-12",
+            "WHOQOL-BREF",
+            "EQ-5D",
+            "other",
+            "unknown"
+          ]
+        },
+        {
+          "$ref": "#/$defs/missing_code"
+        },
+        {
+          "type": "null"
+        }
       ],
       "x_group": "mental_health",
       "x_note": "Required if quality_of_life_score present. PCOSQ and variants are PCOS-specific; the others are generic."
     },
-
     "pcos_diagnosis_flag": {
+      "x_id": 80,
       "$ref": "#/$defs/nullable_boolean",
       "x_group": "diagnosis",
-      "x_hints": ["pcos", "PCOS_diagnosis", "polycystic"]
+      "x_hints": [
+        "pcos",
+        "PCOS_diagnosis",
+        "polycystic"
+      ]
     },
     "diagnostic_criteria_version": {
+      "x_id": 36,
       "anyOf": [
-        { "type": "string", "enum": ["NIH_1990", "Rotterdam_2003", "AE_PCOS_2006", "Intl_2018", "Intl_2023", "unknown"] },
-        { "type": "null" }
+        {
+          "type": "string",
+          "enum": [
+            "NIH_1990",
+            "Rotterdam_2003",
+            "AE_PCOS_2006",
+            "Intl_2018",
+            "Intl_2023",
+            "unknown"
+          ]
+        },
+        {
+          "type": "null"
+        }
       ],
       "x_group": "diagnosis",
       "x_priority": "critical",
       "x_note": "Criteria differ substantively; without this, diagnosis flags are not comparable across datasets."
     },
     "criteria_met": {
+      "x_id": 26,
       "anyOf": [
         {
           "type": "array",
-          "items": { "type": "string", "enum": ["ovulatory", "hyperandrogenism", "pcom"] },
+          "items": {
+            "type": "string",
+            "enum": [
+              "ovulatory",
+              "hyperandrogenism",
+              "pcom"
+            ]
+          },
           "uniqueItems": true,
           "maxItems": 3
         },
-        { "type": "null" }
+        {
+          "type": "null"
+        }
       ],
       "x_group": "diagnosis"
     },
     "phenotype": {
+      "x_id": 81,
       "anyOf": [
-        { "type": "string", "enum": ["A", "B", "C", "D", "unknown"] },
-        { "type": "null" }
+        {
+          "type": "string",
+          "enum": [
+            "A",
+            "B",
+            "C",
+            "D",
+            "unknown"
+          ]
+        },
+        {
+          "type": "null"
+        }
       ],
       "x_group": "diagnosis",
-      "x_derivable": "A = ovulatory+hyperandrogenism+pcom; B = ovulatory+hyperandrogenism; C = hyperandrogenism+pcom; D = ovulatory+pcom",
       "x_note": "Phenotypes differ in metabolic risk; collapsing to a single flag loses most of the signal."
     },
     "diagnosis_source": {
+      "x_id": 35,
       "anyOf": [
-        { "type": "string", "enum": ["clinician", "self_report", "derived", "unknown"] },
-        { "type": "null" }
+        {
+          "type": "string",
+          "enum": [
+            "clinician",
+            "self_report",
+            "derived",
+            "unknown"
+          ]
+        },
+        {
+          "type": "null"
+        }
       ],
       "x_group": "diagnosis"
     },
     "diagnosis_date": {
+      "x_id": 34,
       "anyOf": [
-        { "type": "string", "format": "date" },
-        { "$ref": "#/$defs/missing_code" },
-        { "type": "null" }
+        {
+          "type": "string",
+          "format": "date"
+        },
+        {
+          "$ref": "#/$defs/missing_code"
+        },
+        {
+          "type": "null"
+        }
       ],
       "x_group": "diagnosis"
     },
-
     "cycle_day_at_draw": {
+      "x_id": 27,
       "$ref": "#/$defs/nullable_integer",
       "x_unit": "days",
+      "x_unit_ucum": "d",
       "x_group": "sample_context",
-      "x_note": "Days since menses onset. Frequently undefined in this population — expected, not an error."
+      "x_note": "Days since menses onset. Frequently undefined in this population \u2014 expected, not an error."
     },
     "collection_date": {
+      "x_id": 22,
       "anyOf": [
-        { "type": "string", "format": "date" },
-        { "$ref": "#/$defs/missing_code" },
-        { "type": "null" }
+        {
+          "type": "string",
+          "format": "date"
+        },
+        {
+          "$ref": "#/$defs/missing_code"
+        },
+        {
+          "type": "null"
+        }
       ],
       "x_group": "sample_context"
     },
     "fasting_status": {
+      "x_id": 45,
       "anyOf": [
-        { "type": "string", "enum": ["fasting", "non_fasting", "unknown"] },
-        { "$ref": "#/$defs/missing_code" },
-        { "type": "null" }
+        {
+          "type": "string",
+          "enum": [
+            "fasting",
+            "non_fasting",
+            "unknown"
+          ]
+        },
+        {
+          "$ref": "#/$defs/missing_code"
+        },
+        {
+          "type": "null"
+        }
       ],
       "x_group": "sample_context",
       "x_note": "Gates interpretability of glucose, insulin, and lipid values.",
-      "x_hints": ["fasting", "PHAFSTHR", "PHQ020"]
+      "x_hints": [
+        "fasting",
+        "PHAFSTHR",
+        "PHQ020"
+      ]
     },
-
     "_provenance": {
       "type": "object",
       "description": "Map of canonical field name to its provenance record.",
-      "additionalProperties": { "$ref": "#/$defs/provenance" }
+      "additionalProperties": {
+        "$ref": "#/$defs/provenance"
+      }
     }
   },
-
   "x_coverage_report": {
     "description": "Fields the coverage report must evaluate.",
-    "criterion_1_evaluable": ["cycle_length_days_typical", "cycles_per_year", "oligomenorrhea_flag", "amenorrhea_flag", "irregular_cycles_self_report", "progesterone_luteal"],
-    "criterion_2_evaluable": ["total_testosterone", "free_testosterone", "free_androgen_index", "dheas", "androstenedione", "hirsutism_score_mfg", "hirsutism_flag"],
-    "criterion_3_evaluable": ["antral_follicle_count_max", "ovarian_volume_max_ml", "amh"],
-    "critical_confounders": ["hormonal_contraceptive_use", "androgen_assay_method", "pregnancy_status"],
-    "verdict_rule": "A dataset can support a Rotterdam diagnosis only if at least 2 of 3 criteria are evaluable AND exclusions_assessed_flag is populated."
+    "criterion_1_evaluable": [
+      "cycle_length_days_typical",
+      "cycles_per_year",
+      "oligomenorrhea_flag",
+      "amenorrhea_flag",
+      "irregular_cycles_self_report",
+      "progesterone_luteal"
+    ],
+    "criterion_2_evaluable": [
+      "total_testosterone",
+      "free_testosterone",
+      "free_androgen_index",
+      "dheas",
+      "androstenedione",
+      "hirsutism_score_mfg",
+      "hirsutism_flag"
+    ],
+    "criterion_3_evaluable": [
+      "antral_follicle_count_max",
+      "ovarian_volume_max_ml",
+      "amh"
+    ],
+    "critical_confounders": [
+      "hormonal_contraceptive_use",
+      "androgen_assay_method",
+      "pregnancy_status"
+    ],
+    "verdict_rule": "A dataset can support a Rotterdam case definition only if at least 2 of 3 criteria have evaluable evidence AND exclusions_assessed_flag is populated. Evaluating the criteria themselves is the tool's job, not the schema's."
   },
-
   "x_validator_rules": [
-    "If pcom_flag is present, pcom_threshold_applied must also be present.",
-    "If age_years < 20 and pcom contributes to criteria_met, emit warning: PCOM is not a valid criterion within ~8 years of menarche.",
     "If age_years - age_at_menarche < 3 and ovulatory dysfunction is inferred from cycle irregularity alone, emit warning.",
     "If hysterectomy_flag is true, cycle fields must be not_applicable rather than missing.",
     "If hormonal_contraceptive_use = current, androgen and cycle fields must carry a suppression warning.",
-    "If hormonal_contraceptive_use = never or none, contraceptive_type must be 'none', 'non_hormonal', or missing — not a hormonal type.",
+    "If hormonal_contraceptive_use = never or none, contraceptive_type must be 'none', 'non_hormonal', or missing \u2014 not a hormonal type.",
     "If contraceptive_type = combined_oral and hormonal_contraceptive_use = current, escalate the androgen suppression warning: SHBG elevation makes free_androgen_index uninterpretable.",
     "If any androgen value is present and androgen_assay_method is missing, emit critical warning.",
     "If depression_screen_score is present, depression_instrument must be present.",
@@ -815,17 +1840,53 @@
     "If quality_of_life_score is present, quality_of_life_instrument must be present.",
     "If any instrument field = 'other', value_raw must carry the verbatim instrument name.",
     "Screen scores are never harmonized across instruments; pooling scores with differing instrument values must emit a warning.",
-    "If pcos_diagnosis_flag is derived and exclusions_assessed_flag is not true, pcos_diagnosis_flag must be 'unknown', not false.",
-    "Derivation never overwrites a source-supplied value; the computed value is recorded in transformation_applied for comparison.",
-    "If a source-supplied value and its derived equivalent disagree beyond rounding tolerance, emit a warning.",
+    "If a source-supplied value and its computed equivalent disagree beyond rounding tolerance, emit a warning. The source value is kept.",
     "Unit conversion is performed by deterministic code, never by the LLM; the LLM only infers unit_raw.",
     "If unit_raw cannot be inferred, conversion and all dependent derivations are blocked until a reviewer supplies it.",
-    "Derived arithmetic fields are computed only when all inputs are present in canonical units.",
-    "Values outside x_range emit a physiological-plausibility warning, not a hard failure — they may indicate an unconverted unit."
+    "Values outside x_range emit a physiological-plausibility warning, not a hard failure \u2014 they may indicate an unconverted unit.",
+    "A field is computed only when no source column mapped to it and every input declared in x_fallback.inputs is present in the unit that input specifies.",
+    "value_source must be 'source' whenever a source column mapped to the field, even if the value could also have been computed.",
+    "If pcos_diagnosis_flag or phenotype is populated, diagnosis_source and diagnostic_criteria_version must also be populated \u2014 these fields record what a source reported, never a computed result.",
+    "If pcom_threshold_applied is populated, the source must also supply the morphology values it was applied to."
   ],
-
   "x_license": {
     "schema": "CC BY 4.0",
     "reference_implementation": "MIT"
+  },
+  "x_field_ids": {
+    "description": "Every field carries a frozen x_id. Ids are 1-based. From v0.1 publication onward they are permanent: never reassigned, never reused. New fields take the next unused integer regardless of alphabetical position. Removed fields leave their id retired so that mapping files written against earlier versions continue to resolve correctly.",
+    "next_available_id": 100,
+    "retired_ids": []
+  },
+  "x_terminology": {
+    "units": "x_unit is the human-readable canonical unit; x_unit_ucum is the same unit as a UCUM code (https://ucum.org). Use x_unit_ucum for machine processing.",
+    "loinc": "x_loinc gives the LOINC code for laboratory and measurement fields (https://loinc.org). Codes marked x_loinc_verified: false are provisional and must be confirmed against the LOINC database before use.",
+    "loinc_caveat": "LOINC codes distinguish mass-based from molar-based measurements. Codes here name the analyte; the canonical unit in x_unit governs. Where a source reports a different scale, the LOINC code may differ from the one listed even though the analyte matches.",
+    "not_adopted": {
+      "SNOMED_CT": "Clinical findings (hirsutism, acne, PCOS diagnosis) have SNOMED concepts but licensing and the small closed concept set made adoption low-value for v0.1.",
+      "CDISC_SDTM": "Trials-oriented; wrong shape for observational research data.",
+      "HL7_FHIR": "Exchange format, not a tabular research schema. A FHIR projection could be added later."
+    }
+  },
+  "x_derivation": {
+    "description": "A field may be populated from a source column or, if absent, computed from other canonical fields. Both are the same field: population method is recorded in the provenance record, not by a separate field.",
+    "precedence": "A source-supplied value always wins. A computed value is used only when the source has none.",
+    "scope": "x_fallback is given only where the calculation is a published standard or plain field selection, cited in x_fallback.source. This schema defines no diagnostic algorithm: criteria evaluation, phenotype assignment, and case definition are interpretations of published guidelines and belong in tools, not in the schema.",
+    "reported_diagnoses": "pcos_diagnosis_flag, phenotype, and criteria_met carry what a source reported, together with diagnostic_criteria_version and diagnosis_source. They are observations, never computed here."
+  },
+  "x_fallback_spec": {
+    "description": "Machine-readable fallback computations. A field carrying x_fallback may be computed when no source column mapped to it. Source-supplied values always take precedence.",
+    "ops": {
+      "expression": "Evaluate `expression` with each input bound to its field name. Arithmetic only: + - * / ** and parentheses. No function calls.",
+      "max": "Maximum of the input values. Null if ANY input is missing \u2014 a partial maximum is not the same quantity.",
+      "min": "Minimum of the input values. Same missing-input rule as max."
+    },
+    "contract": {
+      "inputs": "Each input names a canonical field and the unit the expression assumes. Convert to that unit before binding; it is not always the field's canonical unit (see homa_ir).",
+      "guards": "All guards must pass or the field is not computed. Conditions: gt, gte, lt, lte, eq, ne.",
+      "warnings": "Emitted alongside the computed value; they do not block computation.",
+      "requires_all_inputs": "Compute only when every input is present. A missing input yields not_measured, never a partial result.",
+      "output_unit": "UCUM code of the result. Must equal the field's x_unit_ucum."
+    }
   }
 }
