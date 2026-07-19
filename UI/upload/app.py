@@ -239,16 +239,29 @@ with tab_harm:
         paths = st.session_state["harm_paths"]
         blocked = review.pending_units(prop.mapping)
 
+        # The same column name can appear in several source files; ask once per
+        # distinct column (the answer is applied to every matching entry).
+        unique_blocked = []
+        seen: set[str] = set()
+        for b in blocked:
+            if b.source_column in seen:
+                continue
+            seen.add(b.source_column)
+            unique_blocked.append(b)
+
+        extra = len(blocked) - len(unique_blocked)
+        msg = f"⏸️ **Paused — {len(unique_blocked)} column(s) are stuck on an unknown unit.** "
+        if extra:
+            msg += f"({len(blocked)} blocked entries total, some repeated across files.) "
         st.warning(
-            f"⏸️ **Paused — {len(blocked)} column(s) are stuck on an unknown unit.** "
-            "Pick the unit each value is recorded in, then continue. Leave one "
+            msg + "Pick the unit each value is recorded in, then continue. Leave one "
             "unresolved to pass it through unconverted."
         )
         if prop.notes:
             st.caption(" ".join(prop.notes))
 
         answers: dict[str, str] = {}
-        for b in blocked:
+        for i, b in enumerate(unique_blocked):
             entry = review.entry_for(prop.mapping, b.source_column)
             cu = entry.unit_canonical if entry else None
             opts = review.unit_options(cu)
@@ -261,7 +274,7 @@ with tab_harm:
             with c2:
                 pick = st.selectbox(
                     f"Unit for {b.source_column}", choices, index=default_idx,
-                    key=f"harm_unit_{b.source_column}", label_visibility="collapsed",
+                    key=f"harm_unit_{i}_{b.source_column}", label_visibility="collapsed",
                 )
             if pick != "(leave unresolved)":
                 answers[b.source_column] = pick

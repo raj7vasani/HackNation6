@@ -60,6 +60,29 @@ def test_empty_answer_leaves_column_blocked(proposal):
     assert len(mapping.blocked) == n_before  # empty answer = unresolved
 
 
+def test_answer_applies_to_duplicate_columns_across_files():
+    """The same column name in several files resolves from one answer."""
+    from pcos_harmonizer.mapping.model import BlockedColumn, MappingEntry, MappingFile
+
+    mapping = MappingFile(
+        mappings=[
+            MappingEntry(source_file="A.xpt", source_column="WTSAF2YR",
+                         canonical_field="weight_kg", unit_canonical="kg"),
+            MappingEntry(source_file="B.xpt", source_column="WTSAF2YR",
+                         canonical_field="weight_kg", unit_canonical="kg"),
+        ],
+        blocked=[
+            BlockedColumn(source_file="A.xpt", source_column="WTSAF2YR", reason="unit_raw_unknown"),
+            BlockedColumn(source_file="B.xpt", source_column="WTSAF2YR", reason="unit_raw_unknown"),
+        ],
+    )
+
+    review.apply_unit_answers(mapping, {"WTSAF2YR": "lb"})
+
+    assert all(e.unit_raw == "lb" and e.human_reviewed for e in mapping.mappings)
+    assert mapping.blocked == []  # both duplicate entries cleared
+
+
 def test_full_interactive_roundtrip_produces_result(proposal):
     mapping = proposal.mapping
     # Answer one testosterone-ish column if present; otherwise any blocked one.
