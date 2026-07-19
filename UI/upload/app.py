@@ -26,7 +26,7 @@ for _p in (BACKEND, REPO_ROOT):
     if str(_p) not in sys.path:
         sys.path.insert(0, str(_p))
 
-from pcos_harmonizer import app_api, to_bytes  # noqa: E402
+from pcos_harmonizer import app_api, review, to_bytes  # noqa: E402
 from pcos_harmonizer.chat import (  # noqa: E402
     DataChatAssistant,
     build_data_context,
@@ -174,40 +174,134 @@ with tab_harm:
         key="harm_run",
     )
 
+    def _harm_progress_cb():
+        """A progress bar + step log, and the callback that drives them."""
+        bar = st.progress(0.0, text="Starting pipeline…")
+        log = st.empty()
+        done: list[str] = []
+
+        def cb(step: int, total: int, message: str) -> None:
+            done.append(f"{step}/{total}  {message}")
+            bar.progress(min(step / total, 1.0), text=message)
+            log.markdown("\n".join(f"- {'✅' if i < len(done) - 1 else '⏳'} {l}"
+                                   for i, l in enumerate(done)))
+        return bar, cb
+
+    def _finish(paths, mapping, prop) -> None:
+        """Run the deterministic tail and store the outcome."""
+        _bar, cb = _harm_progress_cb()
+        st.session_state["outcome"] = app_api.complete_after_review(
+            paths, mapping, engine_used=prop.engine_used,
+            source=source_val, notes=prop.notes, on_progress=cb,
+        )
+        _bar.progress(1.0, text="Done")
+
     if run and input_paths:
-        progress_bar = st.progress(0.0, text="Starting pipeline…")
-        step_log = st.empty()
-        completed: list[str] = []
+        # Fresh run: clear any prior result / paused review.
+        for k in ("outcome", "harm_phase", "harm_prop"):
+            st.session_state.pop(k, None)
+        st.session_state["harm_paths"] = [str(p) for p in input_paths]
 
-        def on_progress(step: int, total: int, message: str) -> None:
-            completed.append(f"{step}/{total}  {message}")
-            progress_bar.progress(min(step / total, 1.0), text=message)
-            step_log.markdown(
-                "\n".join(f"- {'✅' if i < len(completed) - 1 else '⏳'} {line}" for i, line in enumerate(completed))
-            )
+        if engine == "demo":
+            # Curated mapping — nothing to review, runs straight through.
+            with st.spinner("Running curated demo mapping…"):
+                try:
+                    st.session_state["outcome"] = app_api.analyze(
+                        input_paths, engine="demo", source=source_val)
+                except Exception as exc:  # noqa: BLE001
+                    st.error(f"Analysis failed: {exc}")
+        else:
+            # Phase 1 — ingest + propose (this is where it may get "stuck").
+            _bar, cb = _harm_progress_cb()
+            try:
+                prop = app_api.propose_for_review(
+                    input_paths, engine=engine, source=source_val, on_progress=cb)
+            except Exception as exc:  # noqa: BLE001
+                _bar.empty()
+                st.error(f"Analysis failed: {exc}")
+                prop = None
 
-        try:
-            st.session_state["outcome"] = app_api.analyze(
-                input_paths,
-                engine=engine,
-                source=source_val,
-                on_progress=on_progress,
-            )
-            progress_bar.progress(1.0, text="Done")
-            if completed:
-                last = completed[-1]
-                completed[-1] = last  # keep list stable
-                step_log.markdown(
-                    "\n".join(f"- ✅ {line}" for line in completed)
+            if prop is not None:
+                if prop.mapping.blocked:
+                    # Stuck → pause and ask the user for units.
+                    st.session_state["harm_prop"] = prop
+                    st.session_state["harm_phase"] = "review"
+                    _bar.empty()
+                    st.rerun()
+                else:
+                    _finish(st.session_state["harm_paths"], prop.mapping, prop)
+
+    # -----------------------------------------------------------------------
+    # Paused for review — ask for the missing units, then resume.
+    # -----------------------------------------------------------------------
+    if st.session_state.get("harm_phase") == "review":
+        prop = st.session_state["harm_prop"]
+        paths = st.session_state["harm_paths"]
+        blocked = review.pending_units(prop.mapping)
+
+        # The same column name can appear in several source files; ask once per
+        # distinct column (the answer is applied to every matching entry).
+        unique_blocked = []
+        seen: set[str] = set()
+        for b in blocked:
+            if b.source_column in seen:
+                continue
+            seen.add(b.source_column)
+            unique_blocked.append(b)
+
+        extra = len(blocked) - len(unique_blocked)
+        msg = f"⏸️ **Paused — {len(unique_blocked)} column(s) are stuck on an unknown unit.** "
+        if extra:
+            msg += f"({len(blocked)} blocked entries total, some repeated across files.) "
+        st.warning(
+            msg + "Pick the unit each value is recorded in, then continue. Leave one "
+            "unresolved to pass it through unconverted."
+        )
+        if prop.notes:
+            st.caption(" ".join(prop.notes))
+
+        answers: dict[str, str] = {}
+        for i, b in enumerate(unique_blocked):
+            entry = review.entry_for(prop.mapping, b.source_column)
+            cu = entry.unit_canonical if entry else None
+            opts = review.unit_options(cu)
+            choices = ["(leave unresolved)"] + opts
+            default_idx = 1 if len(opts) == 1 else 0
+            c1, c2 = st.columns([2, 3])
+            with c1:
+                st.markdown(f"**{b.source_column}** → `{entry.canonical_field}`")
+                st.caption(f"canonical unit: {cu}")
+            with c2:
+                pick = st.selectbox(
+                    f"Unit for {b.source_column}", choices, index=default_idx,
+                    key=f"harm_unit_{i}_{b.source_column}", label_visibility="collapsed",
                 )
-        except Exception as exc:  # noqa: BLE001
-            st.session_state.pop("outcome", None)
-            st.error(f"Analysis failed: {exc}")
-            progress_bar.empty()
-            step_log.empty()
+            if pick != "(leave unresolved)":
+                answers[b.source_column] = pick
+
+        go, skip, cancel = st.columns([2, 2, 1])
+        with go:
+            if st.button("Apply units & continue →", type="primary",
+                         use_container_width=True, key="harm_apply"):
+                review.apply_unit_answers(prop.mapping, answers)
+                _finish(paths, prop.mapping, prop)
+                st.session_state.pop("harm_phase", None)
+                st.rerun()
+        with skip:
+            if st.button("Skip all & continue", use_container_width=True, key="harm_skip"):
+                _finish(paths, prop.mapping, prop)
+                st.session_state.pop("harm_phase", None)
+                st.rerun()
+        with cancel:
+            if st.button("Cancel", use_container_width=True, key="harm_cancel"):
+                for k in ("harm_phase", "harm_prop"):
+                    st.session_state.pop(k, None)
+                st.rerun()
 
     outcome = st.session_state.get("outcome")
-    if outcome is not None:
+    if st.session_state.get("harm_phase") == "review":
+        pass  # results are hidden while paused
+    elif outcome is not None:
         res = outcome.result
 
         if outcome.engine_used != outcome.requested_engine or outcome.notes:
@@ -254,9 +348,38 @@ with tab_harm:
                 )
             st.dataframe(pd.DataFrame(rows), use_container_width=True, hide_index=True)
             if res.mapping.unmapped_columns:
-                st.caption(f"{len(res.mapping.unmapped_columns)} column(s) left unmapped (visible, not guessed).")
+                with st.expander(
+                    f"🔎 {len(res.mapping.unmapped_columns)} column(s) left unmapped (visible, not guessed)"
+                ):
+                    st.dataframe(
+                        pd.DataFrame(
+                            {
+                                "source_file": u.source_file,
+                                "source_column": u.source_column,
+                                "reason": u.reason,
+                            }
+                            for u in res.mapping.unmapped_columns
+                        ),
+                        use_container_width=True,
+                        hide_index=True,
+                    )
             if res.mapping.blocked:
-                st.caption(f"{len(res.mapping.blocked)} column(s) blocked pending unit review.")
+                with st.expander(
+                    f"⏸️ {len(res.mapping.blocked)} column(s) blocked pending unit review"
+                ):
+                    st.dataframe(
+                        pd.DataFrame(
+                            {
+                                "source_file": b.source_file,
+                                "source_column": b.source_column,
+                                "reason": b.reason,
+                                "detail": b.detail or "",
+                            }
+                            for b in res.mapping.blocked
+                        ),
+                        use_container_width=True,
+                        hide_index=True,
+                    )
 
         with r_data:
             st.dataframe(res.table, use_container_width=True, hide_index=True)

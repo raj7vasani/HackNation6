@@ -220,6 +220,64 @@ def run_from_mapping(
     return result
 
 
+def propose_mapping(
+    input_paths,
+    client: Any = "auto",
+    source: str | None = "nhanes",
+    on_progress: ProgressCallback | None = None,
+) -> MappingFile:
+    """Steps [1]–[3] only: ingest → profile → propose.
+
+    Returns the reviewable :class:`MappingFile` (including its ``blocked`` list) so
+    a caller can pause for human input before running the deterministic tail via
+    :func:`resume_pipeline`.
+    """
+    total = 2
+    registry = get_registry()
+    llm = _resolve_client(client)
+
+    _emit(on_progress, 1, total, "Ingesting files…")
+    files = read_files(list(input_paths))
+
+    _emit(on_progress, 2, total, "Proposing column mappings & value maps…")
+    return build_mapping(files, registry, llm, source)
+
+
+def resume_pipeline(
+    input_paths,
+    mapping: MappingFile,
+    output_path: str | Path | None = None,
+    output_format: str | None = None,
+    source: str | None = "nhanes",
+    on_progress: ProgressCallback | None = None,
+) -> PipelineResult:
+    """Steps [5]–[8] from an in-memory (reviewed) :class:`MappingFile`.
+
+    The deterministic tail — the same code path as :func:`run_from_mapping`, but
+    taking a mapping object instead of a file path so an interactive review loop
+    can hand back an edited mapping without a round-trip to disk.
+    """
+    total = 4
+    registry = get_registry()
+    files = read_files(list(input_paths))
+    source_cfg = load_source_config(source)
+    join = join_files(files, key=mapping.join.key)
+
+    result = _transform_and_report(
+        join.df,
+        mapping,
+        registry,
+        source_cfg,
+        output_path,
+        output_format,
+        on_progress=on_progress,
+        step_offset=0,
+        total=total,
+    )
+    result.mapping = mapping
+    return result
+
+
 def _transform_and_report(
     df: pd.DataFrame,
     mapping: MappingFile,
