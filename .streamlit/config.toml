@@ -4,8 +4,8 @@
 # return AxiosError 403. Fine for local hackathon use; re-enable for production.
 enableXsrfProtection = false
 enableCORS = false
-maxUploadSize = 200
-maxMessageSize = 200
+maxUploadSize = 3
+maxMessageSize = 3
 address = "localhost"
 
 [browser]

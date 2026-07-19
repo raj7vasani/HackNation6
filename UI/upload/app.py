@@ -147,6 +147,7 @@ with tab_harm:
             "Upload XPT / CSV / Excel files",
             type=["xpt", "csv", "tsv", "xlsx", "xls"],
             accept_multiple_files=True,
+            max_upload_size=3,
             key="harm_uploader",
         )
         if uploaded:
@@ -306,6 +307,7 @@ with tab_convert:
             "Drop XPT, CSV, or Excel files",
             type=["xpt", "csv", "xlsx", "xls"],
             accept_multiple_files=True,
+            max_upload_size=3,
             key="convert_uploader",
         )
 
