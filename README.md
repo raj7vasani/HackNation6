@@ -1,144 +1,107 @@
-# HackNation6
+# PCOS Schema Mapper
 
-Challenge #5: Foundation Models for Women's Hormonal Health
+**An open, Rotterdam-criteria-grounded canonical schema for PCOS research data, plus an AI-assisted, human-reviewed tool that maps any raw dataset into it.**
 
-## Setup
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
+[![Python 3.11+](https://img.shields.io/badge/python-3.11%2B-blue)](backend/pyproject.toml)
+[![Tests: pytest](https://img.shields.io/badge/tests-pytest-informational)](#testing)
+
+Research on PCOS (Polycystic Ovary Syndrome) is fragmented across incompatible data sources — population surveys (NHANES), hospital exports, and independent studies each capture the same clinical variables under different column names, units, and formats. This project defines an open data schema grounded in the [Rotterdam diagnostic criteria](docs/PCOS_SCHEMA_SPEC.md) and provides a pipeline that harmonizes any input dataset into it: an LLM *proposes* column mappings, a human *reviews* them, and deterministic code executes every transformation. No model ever touches a number.
+
+📖 **[Problem statement](docs/PROBLEM_STATEMENT.md)** · **[Schema spec](docs/PCOS_SCHEMA_SPEC.md)** · **[Architecture diagram](docs/diagrams/architecture.md)** · **[Implementation notes](docs/IMPLEMENTATION_NOTES.md)**
+
+---
+
+## Contents
+
+- [How it works](#how-it-works)
+- [Quickstart](#quickstart)
+- [Project layout](#project-layout)
+- [Configuration](#configuration)
+- [Testing](#testing)
+- [Documentation](#documentation)
+- [Contributing](#contributing)
+- [License](#license)
+
+## How it works
+
+```
+input files → ingest → profile → propose (LLM) → review (human) → transform → derive → validate → report
+```
+
+The LLM runs **only** in the *propose* step, suggesting which source column maps to which canonical field and in what unit. Every step after that — unit conversion, derived fields (BMI, free androgen index, HOMA-IR, …), Rotterdam criterion flags, validation, and the coverage report — is deterministic, reproducible Python. A run can also **pause mid-pipeline** to ask for a unit when it can't infer one confidently, rather than guessing.
+
+See the [architecture diagram](docs/diagrams/architecture.md) for the full data flow.
+
+## Quickstart
+
+Requires Python 3.11+.
 
 ```bash
+git clone <this-repo>
+cd HackNation6
 python3 -m venv .venv
 source .venv/bin/activate
 pip install -r requirements.txt
-python -m ipykernel install --user --name=hacknation6 --display-name="HackNation6 (.venv)"
 ```
 
-Put any SAS XPORT (`.xpt`) files in `data/`:
+Run the app:
 
 ```bash
-curl -L -o data/P_RHQ.xpt \
-  https://wwwn.cdc.gov/Nchs/Data/Nhanes/Public/2017/DataFiles/P_RHQ.xpt
-```
-
-## Explore data (Jupyter)
-
-General-purpose notebook — change `XPT_NAME` (or `XPT_PATH`) to analyse any file in `data/`.
-
-Select kernel **HackNation6 (.venv)**, then:
-
-```bash
-source .venv/bin/activate
-jupyter notebook notebooks/explore_xpt.ipynb
-```
-
-## Backend: PCOS harmonizer
-
-The `backend/pcos_harmonizer` package maps raw research datasets onto the PCOS
-canonical schema via an auditable pipeline (ingest → profile → LLM propose →
-review → transform → derive → validate → report). The LLM runs **only** in the
-propose step; everything after is deterministic.
-
-```bash
-pip install -r backend/requirements.txt
-cd backend && python -m pytest        # 48 tests
-```
-
-## App (Streamlit UI + backend)
-
-```bash
-pip install -r backend/requirements.txt -r UI/requirements.txt
 streamlit run UI/upload/app.py
 ```
 
-Configure via `.env` (git-ignored):
+Toggle **"Use bundled mock data"** in the UI to try it immediately with no setup — synthetic datasets in `mock_data/` let you explore the full pipeline offline, with no API key required.
 
-- `OPENAI_API_KEY` — enables the LLM mapping engine.
-- `USE_MOCK_DATA=true` — default to the synthetic files in `mock_data/` until the
-  real datasets are finalized.
+## Project layout
 
-The UI offers three mapping engines with automatic fallback for demos:
+```
+backend/pcos_harmonizer/   Core pipeline: ingest, profile, propose (LLM), transform, derive, validate, report
+UI/upload/                 Streamlit app
+docs/                      Schema spec, problem statement, architecture, implementation notes
+mock_data/                 Synthetic datasets + a curated offline demo mapping
+data/                      Drop your own NHANES/.xpt files here
+notebooks/                 Exploratory Jupyter notebook for raw .xpt files
+```
 
-1. **AI mapping (LLM)** — falls back to heuristic, then the curated demo mapping.
+## Configuration
+
+Set these in a `.env` file at the repo root (git-ignored):
+
+| Variable | Purpose |
+|---|---|
+| `OPENAI_API_KEY` | Enables the AI mapping engine. Without it, the app falls back to a deterministic offline heuristic. |
+| `USE_MOCK_DATA` | Set `true` to default to the bundled synthetic datasets in `mock_data/`. |
+
+The UI offers three mapping engines with automatic fallback, so a demo never fails to produce a result:
+
+1. **AI mapping (LLM)** → falls back to heuristic → falls back to the curated demo mapping.
 2. **Heuristic (offline)** — deterministic, no network.
-3. **Demo (curated mapping)** — a human-reviewed mapping in
-   `mock_data/demo_snapshot/` that always produces a correct result offline.
-
-See `mock_data/README.md` for the bundled synthetic datasets.
+3. **Demo (curated mapping)** — a human-reviewed mapping that always produces a correct result offline.
 
 ## Testing
 
-Instructions for everyone. All commands are run from the repo root unless noted.
-
-### 0. One-time setup
-
 ```bash
-python3 -m venv .venv
-source .venv/bin/activate
-pip install -r backend/requirements.txt -r UI/requirements.txt
+cd backend
+python -m pytest
 ```
 
-The bundled synthetic inputs in `mock_data/` are committed, so tests work with no
-network and no API key. If they are ever missing, regenerate them:
+The suite covers the schema loader, the unit converter (checked against the schema's own `x_conversions` oracle), missingness handling, value maps, derivations, mapping I/O, the output writer, the interactive review flow, the chat assistant, and an end-to-end NHANES run — all offline, with no API key required.
 
-```bash
-python mock_data/generate_mock_data.py
-```
+## Documentation
 
-### 1. Unit tests (no network, no API key)
+- [Problem statement](docs/PROBLEM_STATEMENT.md) — why this project exists
+- [PCOS canonical schema spec](docs/PCOS_SCHEMA_SPEC.md) — field definitions, units, validity conditions
+- [Implementation notes](docs/IMPLEMENTATION_NOTES.md) — pipeline mechanics, unit conversion strategy, build order
+- [LLM integration](docs/LLM_INTEGRATION.md) — how the proposer prompts and parses the model
+- [Field value mappings](docs/FIELD_VALUE_MAPPINGS.md) — categorical/enum standardization reference
+- [Architecture diagram](docs/diagrams/architecture.md)
+- [mock_data/README.md](mock_data/README.md) — bundled synthetic datasets
 
-The suite covers the schema loader, the unit converter (checked against the
-schema's `x_conversions` oracle), missingness, value maps, derivations, mapping
-I/O, the output writer, and an end-to-end NHANES run.
+## Contributing
 
-```bash
-cd backend && python -m pytest
-```
+Issues and pull requests are welcome. Please run the test suite before submitting a change, and keep the core boundary intact: the LLM proposes column mappings only — it must never perform unit conversion, derivation, or diagnosis logic.
 
-Expected: **48 passed**. (`backend/pyproject.toml` sets `pythonpath`, so no extra
-`PYTHONPATH` is needed when running from `backend/`.)
+## License
 
-### 2. End-to-end pipeline check (offline, deterministic)
-
-Runs ingest → transform → derive → validate → report on the mock data with no LLM.
-The curated "demo" engine should report **"Can support a Rotterdam diagnosis"**;
-the heuristic engine will honestly report limited coverage.
-
-```bash
-cd backend && PYTHONPATH="$PWD" python -c "
-from pcos_harmonizer import app_api
-from pcos_harmonizer.config import mock_data_files
-paths = [p for p in mock_data_files() if 'clinic' in p.name]
-for engine in ['demo', 'heuristic']:
-    o = app_api.analyze(paths, engine=engine, source=None)
-    print(engine, '->', o.result.coverage['verdict'])
-"
-```
-
-### 3. LLM test (needs `OPENAI_API_KEY` + network)
-
-Add your key to `.env` (git-ignored), then run the real AI mapping engine:
-
-```bash
-echo 'OPENAI_API_KEY=sk-...' >> .env
-cd backend && PYTHONPATH="$PWD" python -c "
-from pcos_harmonizer import app_api
-from pcos_harmonizer.config import mock_data_files
-paths = [p for p in mock_data_files() if 'clinic' in p.name]
-o = app_api.analyze(paths, engine='llm', source=None)
-print('engine used:', o.engine_used, '| verdict:', o.result.coverage['verdict'])
-"
-```
-
-Expected: `engine used: llm | verdict: Can support a Rotterdam diagnosis`. If the
-call fails (no key, quota, network), it automatically falls back to the heuristic
-then the curated demo — the run never crashes.
-
-### 4. UI test (manual)
-
-```bash
-streamlit run UI/upload/app.py
-```
-
-Then in the browser: keep **Use bundled mock data** on, select
-`mock_pcos_clinic.xpt`, pick a **mapping engine** in the sidebar, and click
-**Analyze Dataset**. Check the *Coverage report*, *Column mapping*, *Standardized
-data*, *Warnings*, and *Download* tabs. Try the **Demo (curated mapping)** engine
-first — it works offline with no API key.
+[MIT](LICENSE)
