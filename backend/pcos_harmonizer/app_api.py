@@ -17,7 +17,7 @@ from pathlib import Path
 from typing import Any
 
 from .config import MOCK_DATA_DIR, get_openai_api_key, mock_data_files, use_mock_data
-from .pipeline import PipelineResult, run_from_mapping, run_pipeline
+from .pipeline import PipelineResult, ProgressCallback, run_from_mapping, run_pipeline
 
 DEMO_SNAPSHOT_DIR = MOCK_DATA_DIR / "demo_snapshot"
 
@@ -51,23 +51,29 @@ def curated_mapping_for(paths) -> Path | None:
     return None
 
 
-def _run_demo(paths, notes: list[str]) -> PipelineResult | None:
+def _run_demo(
+    paths,
+    notes: list[str],
+    on_progress: ProgressCallback | None = None,
+) -> PipelineResult | None:
     mp = curated_mapping_for(paths)
     if mp is None:
         notes.append("no curated demo mapping bundled for these files")
         return None
-    return run_from_mapping(paths, mp, source=None)
+    return run_from_mapping(paths, mp, source=None, on_progress=on_progress)
 
 
 def analyze(
     paths,
     engine: str = "llm",
     source: str | None = "nhanes",
+    on_progress: ProgressCallback | None = None,
 ) -> AnalysisOutcome:
     """Run the pipeline with graceful degradation.
 
     ``engine``: "llm" (LLM with fallback), "heuristic" (offline), or "demo"
     (curated mapping only).
+    ``on_progress``: optional ``(step, total, message)`` callback for UI progress.
     """
     paths = [Path(p) for p in paths]
     if not paths:
@@ -76,7 +82,7 @@ def analyze(
     notes: list[str] = []
 
     if engine == "demo":
-        result = _run_demo(paths, notes)
+        result = _run_demo(paths, notes, on_progress=on_progress)
         if result is not None:
             return AnalysisOutcome(result, "demo", engine, notes)
         engine = "heuristic"  # fall through if no snapshot
@@ -84,7 +90,13 @@ def analyze(
     if engine == "llm":
         if get_openai_api_key():
             try:
-                result = run_pipeline(paths, client="auto", source=source, write_mapping=False)
+                result = run_pipeline(
+                    paths,
+                    client="auto",
+                    source=source,
+                    write_mapping=False,
+                    on_progress=on_progress,
+                )
                 return AnalysisOutcome(result, "llm", "llm", notes)
             except Exception as exc:  # network/quota/parse — degrade gracefully
                 notes.append(f"LLM run failed ({exc}); falling back to heuristic")
@@ -93,13 +105,19 @@ def analyze(
 
     # Heuristic (offline, deterministic)
     try:
-        result = run_pipeline(paths, client=None, source=source, write_mapping=False)
+        result = run_pipeline(
+            paths,
+            client=None,
+            source=source,
+            write_mapping=False,
+            on_progress=on_progress,
+        )
         return AnalysisOutcome(result, "heuristic", engine, notes)
     except Exception as exc:
         notes.append(f"heuristic run failed ({exc}); trying curated demo")
 
     # Last resort: curated demo mapping
-    result = _run_demo(paths, notes)
+    result = _run_demo(paths, notes, on_progress=on_progress)
     if result is not None:
         return AnalysisOutcome(result, "demo", engine, notes)
 

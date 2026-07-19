@@ -12,10 +12,13 @@ from __future__ import annotations
 from dataclasses import dataclass, field
 from functools import lru_cache
 from pathlib import Path
-from typing import Any
+from typing import Any, Callable
 
 import pandas as pd
 import yaml
+
+# Optional progress hook: (step_index 1-based, total_steps, message) → None
+ProgressCallback = Callable[[int, int, str], None]
 
 from . import config as cfg
 from .derive import derive_all
@@ -128,6 +131,11 @@ def build_mapping(
     )
 
 
+def _emit(on_progress: ProgressCallback | None, step: int, total: int, message: str) -> None:
+    if on_progress is not None:
+        on_progress(step, total, message)
+
+
 def run_pipeline(
     input_paths,
     output_path: str | Path | None = None,
@@ -136,12 +144,17 @@ def run_pipeline(
     source: str | None = "nhanes",
     mapping_out: str | Path | None = None,
     write_mapping: bool = True,
+    on_progress: ProgressCallback | None = None,
 ) -> PipelineResult:
     """Full pipeline from raw files to canonical table + coverage report."""
+    total = 6
     registry = get_registry()
     llm = _resolve_client(client)
+
+    _emit(on_progress, 1, total, "Ingesting files…")
     files = read_files(list(input_paths))
 
+    _emit(on_progress, 2, total, "Proposing column mappings & value maps…")
     mapping = build_mapping(files, registry, llm, source)
 
     if write_mapping:
@@ -153,7 +166,17 @@ def run_pipeline(
     source_cfg = load_source_config(source)
     join = join_files(files, key=mapping.join.key)
 
-    result = _transform_and_report(join.df, mapping, registry, source_cfg, output_path, output_format)
+    result = _transform_and_report(
+        join.df,
+        mapping,
+        registry,
+        source_cfg,
+        output_path,
+        output_format,
+        on_progress=on_progress,
+        step_offset=2,
+        total=total,
+    )
     result.mapping = mapping
     result.mapping_path = Path(mapping_out) if mapping_out else None
     return result
@@ -165,16 +188,33 @@ def run_from_mapping(
     output_path: str | Path | None = None,
     output_format: str | None = None,
     source: str | None = "nhanes",
+    on_progress: ProgressCallback | None = None,
 ) -> PipelineResult:
     """Deterministic re-run from a reviewed mapping file (steps [5]–[8])."""
     from .mapping.io import read_mapping_file
 
+    total = 5
     registry = get_registry()
+
+    _emit(on_progress, 1, total, "Ingesting files…")
     files = read_files(list(input_paths))
+
+    _emit(on_progress, 2, total, "Loading curated mapping…")
     mapping = read_mapping_file(mapping_path)
     source_cfg = load_source_config(source)
     join = join_files(files, key=mapping.join.key)
-    result = _transform_and_report(join.df, mapping, registry, source_cfg, output_path, output_format)
+
+    result = _transform_and_report(
+        join.df,
+        mapping,
+        registry,
+        source_cfg,
+        output_path,
+        output_format,
+        on_progress=on_progress,
+        step_offset=2,
+        total=total,
+    )
     result.mapping = mapping
     result.mapping_path = Path(mapping_path)
     return result
@@ -187,16 +227,24 @@ def _transform_and_report(
     source_cfg: dict[str, Any],
     output_path: str | Path | None,
     output_format: str | None,
+    on_progress: ProgressCallback | None = None,
+    step_offset: int = 0,
+    total: int = 4,
 ) -> PipelineResult:
+    _emit(on_progress, step_offset + 1, total, "Transforming units & applying value maps…")
     tr = transform(df, mapping, registry, subject_key=mapping.join.key, sources=source_cfg)
     table = tr.table
     warnings: list[Any] = list(tr.warnings)
 
+    _emit(on_progress, step_offset + 2, total, "Deriving criteria & diagnosis…")
     insulin_field = registry.get("fasting_insulin")
     derive_warnings = derive_all(table, insulin_unit=insulin_field.unit if insulin_field else None)
     warnings += derive_warnings
 
+    _emit(on_progress, step_offset + 3, total, "Validating against schema rules…")
     validation = validate(table, registry)
+
+    _emit(on_progress, step_offset + 4, total, "Building coverage report…")
     coverage = coverage_report(table, registry, tr.provenance)
 
     out_path = None

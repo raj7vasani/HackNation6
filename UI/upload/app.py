@@ -98,6 +98,8 @@ with st.sidebar:
     has_key = bool(get_openai_api_key())
     st.caption(f"OpenAI key: {'detected' if has_key else 'not found'}")
     st.caption(f"USE_MOCK_DATA: {'on' if use_mock_data() else 'off'}")
+    # Helps confirm .streamlit/config.toml was loaded (upload 403 if still True).
+    st.caption(f"XSRF protection: {'on' if st.get_option('server.enableXsrfProtection') else 'off'}")
 
     default_engine_idx = 0 if has_key else 1
     engine_label = st.radio("Mapping engine", list(ENGINE_LABELS), index=default_engine_idx)
@@ -165,14 +167,36 @@ with tab_harm:
     )
 
     if run and input_paths:
-        with st.spinner(f"Running the {engine_label} pipeline…"):
-            try:
-                st.session_state["outcome"] = app_api.analyze(
-                    input_paths, engine=engine, source=source_val
+        progress_bar = st.progress(0.0, text="Starting pipeline…")
+        step_log = st.empty()
+        completed: list[str] = []
+
+        def on_progress(step: int, total: int, message: str) -> None:
+            completed.append(f"{step}/{total}  {message}")
+            progress_bar.progress(min(step / total, 1.0), text=message)
+            step_log.markdown(
+                "\n".join(f"- {'✅' if i < len(completed) - 1 else '⏳'} {line}" for i, line in enumerate(completed))
+            )
+
+        try:
+            st.session_state["outcome"] = app_api.analyze(
+                input_paths,
+                engine=engine,
+                source=source_val,
+                on_progress=on_progress,
+            )
+            progress_bar.progress(1.0, text="Done")
+            if completed:
+                last = completed[-1]
+                completed[-1] = last  # keep list stable
+                step_log.markdown(
+                    "\n".join(f"- ✅ {line}" for line in completed)
                 )
-            except Exception as exc:  # noqa: BLE001
-                st.session_state.pop("outcome", None)
-                st.error(f"Analysis failed: {exc}")
+        except Exception as exc:  # noqa: BLE001
+            st.session_state.pop("outcome", None)
+            st.error(f"Analysis failed: {exc}")
+            progress_bar.empty()
+            step_log.empty()
 
     outcome = st.session_state.get("outcome")
     if outcome is not None:
