@@ -1,5 +1,6 @@
 api_key.env
 .env
+.streamlit/secrets.toml
 
 # Local data & analysis artifacts
 data/*.xpt

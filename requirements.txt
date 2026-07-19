@@ -4,3 +4,14 @@ matplotlib>=3.7
 numpy>=1.24
 jupyter>=1.0
 ipykernel>=6.0
+
+# --- Streamlit UI + backend (UI/upload/app.py, backend/pcos_harmonizer) ---
+streamlit>=1.30
+openpyxl>=3.1
+pyarrow>=14.0
+pint>=0.23
+pyyaml>=6.0
+jsonschema>=4.0
+pydantic>=2.0
+openai>=1.0
+python-dotenv>=1.0
