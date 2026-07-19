@@ -10,6 +10,7 @@ deterministic. See the module docstrings for details.
 """
 
 from .app_api import AnalysisOutcome, analyze, default_inputs
+from .chat import DataChatAssistant, build_data_context, chat_available
 from .output import (
     SUPPORTED_FORMATS,
     UnsupportedFormatError,
@@ -25,9 +26,12 @@ __all__ = [
     "SUPPORTED_FORMATS",
     "UnsupportedFormatError",
     "AnalysisOutcome",
+    "DataChatAssistant",
     "PipelineResult",
     "analyze",
+    "build_data_context",
     "build_mapping",
+    "chat_available",
     "default_inputs",
     "get_registry",
     "infer_format",
