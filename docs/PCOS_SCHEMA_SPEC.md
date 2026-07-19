@@ -58,7 +58,6 @@ Units listed are canonical. Conversion factors are from common source units.
 | Field | Unit | Type | Derived | Notes |
 |---|---|---|---|---|
 | `subject_id` | — | string |  | **Required.** Unique within `source_dataset`. |
-| `source_dataset` | — | string |  | **Required.** Dataset identifier. |
 | `age_years` | years | float |  | |
 | `race_ethnicity` | — | string |  | Preserve source label verbatim; do not recode. |
 | `height_cm` | cm | float |  | from in × 2.54 |
